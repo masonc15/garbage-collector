@@ -1,9 +1,12 @@
+import { readFileSync } from "node:fs";
 import esbuild, { Plugin } from "esbuild";
 
 // @ts-expect-error No types for this module
 const { default: babel } = (await import("esbuild-plugin-babel")) as {
   default: () => Plugin;
 };
+
+const version = JSON.parse(readFileSync("package.json", "utf8")).version;
 
 const watch = process.argv.some((arg) => ["--watch", "-w"].includes(arg));
 
@@ -17,7 +20,7 @@ const context = await esbuild.context({
       process.env?.["GITHUB_SHA"] ?? "CustomBuild"
     }"`,
     "process.env.GITHUB_REF_NAME": `"${
-      process.env?.["GITHUB_REF_NAME"] ?? "CustomBuild"
+      process.env?.["GITHUB_REF_NAME"] ?? `nightcap-${version}`
     }"`,
     "process.env.GITHUB_REPOSITORY": `"${
       process.env?.["GITHUB_REPOSITORY"] ?? "CustomBuild"

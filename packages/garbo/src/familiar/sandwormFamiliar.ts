@@ -36,6 +36,18 @@ export function sandwormFamiliar(): Familiar {
       !f.elementalDamage,
   );
 
+  // Some accounts have no fairy. Do not fail while pricing optional fights.
+  if (viableFairies.length === 0) {
+    if (have($familiar`Steam-Powered Cheerleader`)) {
+      return $familiar`Steam-Powered Cheerleader`;
+    }
+    return (
+      Familiar.all().find(
+        (f) => have(f) && !f.physicalDamage && !f.elementalDamage,
+      ) ?? Familiar.none
+    );
+  }
+
   const highestFairyMult = findFairyMultiplier(
     maxBy(viableFairies, (f) =>
       f === $familiar`Jill-of-All-Trades` && have($item`toy Cupid bow`)

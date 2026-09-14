@@ -11,3 +11,7 @@ dist
 
 .DS_Store
 yarn-error.log*
+
+AGENTS.md
+CLAUDE.md
+AGENTS.override.md

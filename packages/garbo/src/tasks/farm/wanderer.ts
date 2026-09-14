@@ -1,3 +1,4 @@
+import { lightsOutTask } from "./lightsOut";
 import {
   adv1,
   canAdventure,
@@ -90,8 +91,6 @@ import { acquire } from "../../acquire";
 
 const isGhost = () => get("_voteMonster") === $monster`angry ghost`;
 const isMutant = () => get("_voteMonster") === $monster`terrible mutant`;
-const isSteve = () =>
-  get("nextSpookyravenStephenRoom") === $location`The Haunted Laboratory`;
 
 function createWandererOutfit(
   details: Delayed<WanderDetails>,
@@ -246,24 +245,7 @@ const BarfTurnTasks: GarboTask[] = [
     do: () => tryFillLatte(),
     spendsTurn: false,
   },
-  {
-    name: "Lights Out",
-    ready: () =>
-      canAdventure(get("nextSpookyravenStephenRoom") ?? $location`none`) &&
-      get("nextSpookyravenStephenRoom") !== get("ghostLocation") &&
-      totalTurnsPlayed() % 37 === 0,
-    completed: () => totalTurnsPlayed() === get("lastLightsOutTurn"),
-    do: () => get("nextSpookyravenStephenRoom") as Location,
-    outfit: () =>
-      meatTargetOutfit(sober() ? {} : { offhand: $item`Drunkula's wineglass` }),
-    spendsTurn: isSteve,
-    combat: new GarboStrategy(() =>
-      Macro.if_(
-        $monster`Stephen Spookyraven`,
-        Macro.basicCombat(),
-      ).abortWithMsg("Expected to fight Stephen Spookyraven, but didn't!"),
-    ),
-  },
+  lightsOutTask,
   {
     name: "Use Walkie Talkie for Ghost",
     ready: () =>

@@ -220,6 +220,11 @@ You can use multiple options in conjunction, e.g. "garbo nobarf ascend"',
           setting: "garbo_skipAscensionCheck",
           help: "Set to true to skip verifying that your account has broken the prism, otherwise you will be warned upon starting the script.",
         }),
+        fightStephen: Args.boolean({
+          setting: "garbo_fightStephen",
+          help: "Opt in to the optional Stephen Spookyraven boss fight. Leave false unless your farming outfit and combat skills can win.",
+          default: false,
+        }),
         fightGlitch: Args.boolean({
           setting: "garbo_fightGlitch",
           help: "Set to true to fight the glitch season reward. You need certain skills, see relay for info.",

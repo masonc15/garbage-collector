@@ -1,12 +1,12 @@
 {
   "name": "garbo",
-  "version": "1.0.0",
+  "version": "1.0.1-nightcap.1",
   "description": "Script for farming meat (and garbage) in 2004 web RPG Kingdom of Loathing.",
   "repository": "https://github.com/loathers/garbage-collector.git",
   "main": "dist/scripts/garbage-collector/garbo.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run tests",
     "build": "node --import tsx ./build.ts && yarn run copyStatic",
     "watch": "yarn build --watch",
     "copyStatic": "copyfiles --up 1 \"static/**/*\" dist",
@@ -50,6 +50,7 @@
     "madge": "^8.0.0",
     "prettier": "^3.3.3",
     "tsx": "^4.21.0",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vitest": "^3.2.0"
   }
 }
