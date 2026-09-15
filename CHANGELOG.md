@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1-nightcap.2 - 2026-09-14
+
+- Publish the tested build once for all Nuada accounts through shared script releases.
+- Include script files, relay assets, static data, and release metadata in the package.
+- Add `--build-only` for the runner deployment. Account-specific deployment is removed.
+
 ## 1.0.1-nightcap.1 - 2026-09-14
 
 - Require `garbo_fightStephen=true` before the optional Lights Out boss fight.
@@ -14,7 +20,7 @@ previous installed build. Source changes are kept on fix/low-resource-farming.
 
 ### Deployment
 
-Run `tools/deploy-nightcap.sh eadmenar` from this repository after committing.
+Run `tools/deploy-nightcap.sh` from this repository after committing.
 The command tests, builds, type-checks, saves a versioned release and backup,
 and verifies each installed file. It refuses to replace a running session.
 The runner does not run `git update` each night, so the fork remains installed.
