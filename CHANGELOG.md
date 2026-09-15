@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1-nightcap.4 - 2026-09-14
+
+- Clear Beaten Up from known June Cleaver rewards before Grimoire repeats the adventure.
+- Keep actual combat losses and existing or unknown Beaten Up effects subject to the normal safety checks.
+- Stop after one unsuccessful cure attempt instead of entering another fight.
+
 ## 1.0.1-nightcap.3 - 2026-09-14
 
 - Check for the SOME PIGS curse before diet purchases or combat.

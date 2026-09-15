@@ -34,6 +34,7 @@ import { globalOptions } from "../config";
 import { sessionSinceStart } from "../session";
 import { garboValue } from "../garboValue";
 import { shrugBadEffects } from "../mood";
+import { recoverCleaverReward } from "../cleaverRecovery";
 import { checkPrefWatchReports } from "../report";
 
 export type GarboTask = StrictCombatTask<never, GarboStrategy> & {
@@ -138,6 +139,13 @@ export class BaseGarboEngine extends Engine<never, GarboTask> {
   prepare(task: GarboTask): void {
     if ("combat" in task) safeRestore();
     super.prepare(task);
+  }
+
+  do(task: GarboTask): void {
+    const wasBeatenUp = have($effect`Beaten Up`);
+    super.do(task);
+    // Grimoire repeats wandering noncombats before post(), and clears lastEncounter.
+    recoverCleaverReward(wasBeatenUp);
   }
 
   execute(task: GarboTask): void {
