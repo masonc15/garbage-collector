@@ -78,6 +78,7 @@ import {
   valueDrops,
 } from "./lib";
 import { meatMood } from "./mood";
+import { checkFamiliarAbilities } from "./familiar/preflight";
 import { potionSetup } from "./potions";
 import { endSession, startSession } from "./session";
 import { estimatedGarboTurns } from "./turns";
@@ -146,6 +147,8 @@ export function main(argString = ""): void {
       "It seems like you're a bit busy right now. Don't run garbo when you're in the middle of a choice adventure.",
     );
   }
+
+  checkFamiliarAbilities();
 
   cliExecute("mallcheck.js");
 

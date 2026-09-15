@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1-nightcap.3 - 2026-09-14
+
+- Check for the SOME PIGS curse before diet purchases or combat.
+- Explain that the White Citadel witch encounter must be completed to restore familiar abilities.
+- Prevent repeated Eagle pledge failures caused by this curse.
+
 ## 1.0.1-nightcap.2 - 2026-09-14
 
 - Publish the tested build once for all Nuada accounts through shared script releases.
