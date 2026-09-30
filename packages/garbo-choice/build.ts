@@ -24,7 +24,7 @@ const context = await esbuild.context({
     }"`,
   },
   entryPoints: {
-    "scripts/garbage-collector/garbo_choice": "src/index.ts",
+    "scripts/garbo-nightcap/garbo-nightcap-choice": "src/index.ts",
   },
   entryNames: "[dir]/[name]",
   outdir: "dist",

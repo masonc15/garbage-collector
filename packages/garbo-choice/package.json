@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Script for farming meat (and garbage) in 2004 web RPG Kingdom of Loathing.",
   "repository": "https://github.com/loathers/garbage-collector.git",
-  "main": "dist/scripts/garbage-collector/garbo_choice.js",
+  "main": "dist/scripts/garbo-nightcap/garbo-nightcap-choice.js",
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

@@ -1052,7 +1052,7 @@ export function monsterManuelAvailable(): boolean {
 const listItems: Partial<{ [key in keyof GarboItemLists]: Item[] }> = {};
 function getDropsList(key: keyof GarboItemLists) {
   return (listItems[key] ??= (
-    JSON.parse(fileToBuffer("garbo_item_lists.json")) as GarboItemLists
+    JSON.parse(fileToBuffer("garbo_nightcap_item_lists.json")) as GarboItemLists
   )[key].map((i) => Item.get(i)));
 }
 export function felizValue(): number {

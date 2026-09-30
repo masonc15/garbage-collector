@@ -61,7 +61,7 @@ function logTargetFight(encounterType: string) {
 export class BaseGarboEngine extends Engine<never, GarboTask> {
   static defaultSettings = {
     ...Engine.defaultSettings,
-    choiceAdventureScript: "garbo_choice.js",
+    choiceAdventureScript: "garbo-nightcap-choice.js",
   };
 
   history: Array<{ name: string; startTime: number; durationMs: number }> = [];

@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.1-nightcap.5 - 2026-09-30
+
+- Install under names upstream never uses, so KoLmafia's `git update` can no
+  longer overwrite the fork: `garbo-nightcap.js`, `garbo-nightcap-choice.js`,
+  `garbo-nightcap-price.js`, `relay_garbo_nightcap.js`, the
+  `relay/garbo-nightcap/` assets, and `garbo_nightcap_*.json` data.
+- Retire the old upstream-named paths. Publishing replaces untouched copies
+  there with upstream's files, so stock garbo stays installed beside the fork.
+- Add a `garbo` gCLI alias for `garbo-nightcap`, so the plain command still
+  runs the fork.
+- Clear stale build output before each deployment build.
+
 ## 1.0.1-nightcap.4 - 2026-09-14
 
 - Clear Beaten Up from known June Cleaver rewards before Grimoire repeats the adventure.

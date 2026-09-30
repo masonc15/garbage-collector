@@ -14,6 +14,8 @@ git diff --quiet HEAD -- packages yarn.lock || { echo 'Commit source changes bef
 export GITHUB_SHA=$(git rev-parse HEAD)
 export GITHUB_REF_NAME="nightcap-$version"
 node .yarn/releases/yarn-3.6.4.cjs workspace garbo test
+# Stale outputs from older file names would otherwise ship in the release.
+rm -rf dist packages/garbo/dist packages/garbo-choice/dist packages/garbo-relay/dist
 node .yarn/releases/yarn-3.6.4.cjs build
 node .yarn/releases/yarn-3.6.4.cjs workspace garbo check
 python3 - "$version" "$GITHUB_SHA" <<'PY'
@@ -32,7 +34,21 @@ meta = json.loads((root / 'nightcap-release.json').read_text())
 paths = sorted(name for name in meta['files'] if name.startswith(('scripts/', 'relay/', 'data/')))
 paths.append('data/nightcap-garbo-release.json')
 files = {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in paths}
-(root / 'release.json').write_text(json.dumps(dict(package='garbo', version=meta['version'], paths=paths, files=files), indent=2) + '\n')
+# Releases through nightcap.4 used upstream's file names, so `git update` could
+# overwrite them. The manager removes those copies and restores upstream's.
+retired = [
+    'data/garbo_item_lists.json',
+    'data/garbo_settings.json',
+    'relay/garbage-collector/index.css',
+    'relay/garbage-collector/index.js',
+    'relay/relay_garbo.js',
+    'scripts/garbage-collector/garbo-price.js',
+    'scripts/garbage-collector/garbo.js',
+    'scripts/garbage-collector/garbo_choice.js',
+]
+# Plain `garbo` keeps running this fork; upstream stays installed beside it.
+aliases = {'garbo': 'garbo-nightcap'}
+(root / 'release.json').write_text(json.dumps(dict(package='garbo', version=meta['version'], paths=paths, files=files, retired=retired, aliases=aliases), indent=2) + '\n')
 PACK
 [ "$mode" != --build-only ] || exit 0
 remote=$(ssh "$host" 'mktemp -d /tmp/kol-garbo.XXXXXXXX')

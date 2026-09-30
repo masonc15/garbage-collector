@@ -44,13 +44,13 @@ export function main(): void {
   });
 
   // load user perferences into json object to pass to react
-  const settings = JSON.parse(fileToBuffer("garbo_settings.json"));
+  const settings = JSON.parse(fileToBuffer("garbo_nightcap_settings.json"));
   for (const setting of settings) {
     setting.value = get(setting.name);
   }
 
   writeln(
-    '<head><link rel="stylesheet" href="/garbage-collector/index.css"></head>',
+    '<head><link rel="stylesheet" href="/garbo-nightcap/index.css"></head>',
   );
   writeln('<div id="root"></div>');
 
@@ -74,5 +74,5 @@ export function main(): void {
   writeln("</script>");
 
   // include react scripts
-  writeln('<script src="./garbage-collector/index.js"></script>');
+  writeln('<script src="./garbo-nightcap/index.js"></script>');
 }
