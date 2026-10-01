@@ -82,11 +82,22 @@ export function withVIPClan<T>(action: () => T): T {
 function withClan<T>(clanIdOrName: string | number, action: () => T): T {
   const startingClanId = getClanId();
   Clan.join(clanIdOrName);
+  let result: T;
   try {
-    return action();
-  } finally {
-    Clan.join(startingClanId);
+    result = action();
+  } catch (error) {
+    try {
+      Clan.join(startingClanId);
+    } catch (cleanupError) {
+      print(
+        `Could not restore clan ${startingClanId}: ${String(cleanupError)}`,
+        "red",
+      );
+    }
+    throw error;
   }
+  Clan.join(startingClanId);
+  return result;
 }
 
 export class StashManager {

@@ -53,6 +53,7 @@ import {
   withChoice,
 } from "libram";
 import { acquire } from "../acquire";
+import { chooseRufusQuest } from "../rufus";
 import { globalOptions } from "../config";
 import { aprilFoolsRufus } from "../lib";
 import { rufusPotion } from "../potions";
@@ -640,7 +641,7 @@ const DailyItemTasks: GarboTask[] = [
     completed: () =>
       get("_shadowForestLooted") || have($item`Rufus's shadow lodestone`),
     do: () => {
-      ClosedCircuitPayphone.chooseQuest(() => 3);
+      chooseRufusQuest(3);
       aprilFoolsRufus();
     },
     spendsTurn: false,

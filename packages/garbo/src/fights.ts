@@ -101,6 +101,7 @@ import {
 import { WanderDetails } from "garbo-lib";
 
 import { acquire } from "./acquire";
+import { chooseRufusQuest } from "./rufus";
 import { withStash } from "./clan";
 import { garboAdventure, garboAdventureAuto, Macro, withMacro } from "./combat";
 import { globalOptions } from "./config";
@@ -1196,7 +1197,7 @@ const freeFightSources = [
         !get("_shadowAffinityToday") &&
         !ClosedCircuitPayphone.rufusTarget()
       ) {
-        ClosedCircuitPayphone.chooseQuest(() => 2); // Choose an artifact (not supporting boss for now)
+        chooseRufusQuest(2); // Choose an artifact (not supporting boss for now)
         aprilFoolsRufus();
       }
 
@@ -1210,7 +1211,7 @@ const freeFightSources = [
           ClosedCircuitPayphone.have() &&
           !ClosedCircuitPayphone.rufusTarget()
         ) {
-          ClosedCircuitPayphone.chooseQuest(() => 2);
+          chooseRufusQuest(2);
           aprilFoolsRufus();
         }
         adv1(bestShadowRift(), -1, ""); // grab the NC

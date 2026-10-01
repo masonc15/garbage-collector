@@ -56,6 +56,7 @@ import {
   withChoice,
 } from "libram";
 import { acquire } from "./acquire";
+import { chooseRufusQuest } from "./rufus";
 import {
   aprilFoolsRufus,
   baseMeat,
@@ -591,7 +592,7 @@ export const rufusPotion = new Potion($item`closed-circuit pay phone`, {
       // Grab a lodestone if we don't have one
       if (!have($item`Rufus's shadow lodestone`)) {
         // If we currently have no quest, acquire one
-        ClosedCircuitPayphone.chooseQuest(() => 3);
+        chooseRufusQuest(3);
         aprilFoolsRufus();
 
         // If we need to acquire items, do so; then complete the quest

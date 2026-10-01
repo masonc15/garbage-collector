@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1-nightcap.7 - 2026-09-30
+
+- Stop immediately when Rufus quest selection fails, leaves a choice open, or
+  reports the wrong quest type, before more setup requests can corrupt state.
+- Preserve the original action error when restoring the starting clan also
+  fails, and report the restoration failure separately.
+
 ## 1.0.1-nightcap.6 - 2026-09-30
 
 - Check previous combat losses and Beaten Up before farming setup or ticket
