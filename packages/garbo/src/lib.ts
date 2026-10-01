@@ -107,6 +107,7 @@ import { acquire } from "./acquire";
 import { globalOptions } from "./config";
 import { garboAverageValue, garboValue } from "./garboValue";
 import { Outfit, OutfitSpec } from "grimoire-kolmafia";
+import { checkCombatSafety } from "./combatSafety";
 
 export const eventLog: {
   initialCopyTargetsFought: number;
@@ -465,25 +466,13 @@ export const ignoreBeatenUp = () => (_ignoreBeatenUp = true);
 export const unignoreBeatenUp = () => (_ignoreBeatenUp = false);
 
 export function safeRestore(): void {
-  if (
-    get("_lastCombatLost") &&
-    lastMonster() !== $monster`Sssshhsssblllrrggghsssssggggrrgglsssshhssslblgl`
-  ) {
-    set("_lastCombatLost", "false");
-    throw new Error(
-      "You lost your most recent combat! Check to make sure everything is alright before rerunning.",
-    );
-  }
+  checkCombatSafety(_ignoreBeatenUp);
   if (have($effect`Beaten Up`) && !_ignoreBeatenUp) {
     if (
       lastMonster() ===
       $monster`Sssshhsssblllrrggghsssssggggrrgglsssshhssslblgl`
     ) {
       uneffect($effect`Beaten Up`);
-    } else {
-      throw new Error(
-        "Hey, you're beaten up, and that's a bad thing. Lick your wounds, handle your problems, and run me again when you feel ready.",
-      );
     }
   }
   if (myHp() < Math.min(myMaxhp() * 0.5, get("garbo_restoreHpTarget", 2000))) {

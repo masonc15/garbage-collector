@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1-nightcap.6 - 2026-09-30
+
+- Check previous combat losses and Beaten Up before farming setup or ticket
+  purchases. Preserve the existing loss acknowledgement and recovery safeguards.
+- Keep help, version, diet simulation, and stash returns available after a loss.
+
 ## 1.0.1-nightcap.5 - 2026-09-30
 
 - Install under names upstream never uses, so KoLmafia's `git update` can no
