@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.1-nightcap.8 - 2026-10-04
+
+- Repair marginal sampling for nodiet runs, forward elapsed turns, short runs,
+  repeated invocations, and window-scoped familiar opportunity adjustments.
+- Log a structured GARBO_LATE_RUN net-value measurement over the last approximately
+  50 paid farming turns. Include cash spending, item depletion, item-level values,
+  positive outliers, actual window bounds, build identity, and valuation caveats.
+  Keep this observed estimate separate from modeled bonuses and later cleanup.
+- Do not change valueOfAdventure automatically or start any additional gameplay.
+
 ## 1.0.1-nightcap.7 - 2026-09-30
 
 - Stop immediately when Rufus quest selection fails, leaves a choice open, or

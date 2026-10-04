@@ -59,6 +59,33 @@ Once you're done running Garbo, you can do the following:
 
 Add all these together and voila - your own `valueOfAdventure`!
 
+### Nightcap late-run measurement
+
+Nightcap also prints `GARBO_LATE_RUN` JSON and a readable net-MPA summary at
+the end of a farming run. No extra gameplay is started to collect it. The
+rolling window targets the final 50 paid turns, using actual snapshot bounds;
+short windows are labeled and zero-turn windows never produce a numeric MPA.
+Free fights and intervening side trips are included, but subsequent finish-up
+and cleanup are excluded. This is an observed farming-interval result, not a
+guarantee about the value of one additional Barf adventure.
+
+`netMeat` includes observed cash income and spending. `netItems` includes both
+inventory gains and depletion, valued with `garboValue` at reporting time;
+these are estimated liquidation/opportunity values, not realized sales or
+necessarily replacement costs. A purchased-and-consumed item is already charged
+through cash spending and is not charged again as inventory depletion. Costs
+incurred before the window, buff amortization, unrelated sales, and unobserved
+costs are not separately reconciled. Inspect the session log alongside the JSON.
+
+The report retains item quantities, unit values, window bounds, account, date,
+build, `nodiet`, and configured `valueOfAdventure`. `netMpa` retains every recorded
+gain and loss; `adjustedMpa` excludes named outlier currencies and single positive
+item gains worth at least 5,000 Meat. Losses are never removed as outliers. No
+modeled familiar or outfit bonus is added, and the report does not automatically
+change `valueOfAdventure`. This observed report is separate from the legacy
+`Marginal MPA` calculation, which uses different meat/item windows and a modeled
+familiar opportunity adjustment.
+
 ### Set your VIP clan
 
 If you have a VIP Lounge Key, Garbo will try to make use of any VIP furniture to augment its farming. To set your VIP clan, copy the name of your intended VIP clan and run the following code (using BAFH as an example):

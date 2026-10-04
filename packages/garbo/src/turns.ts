@@ -25,11 +25,14 @@ import { LuckySource } from "./resources/lucky";
  * Computes the estimated number of turns during which garbo will run
  * @returns A guess of how many runs garbo will run in total
  */
-export function estimatedGarboTurns(estimateEmptyOrgans = true): number {
+export function estimatedGarboTurns(
+  estimateEmptyOrgans = !globalOptions.nodiet,
+): number {
   // Assume roughly 2 fullness from pantsgiving and 8 adventures/fullness.
-  const pantsgivingAdventures = have($item`Pantsgiving`)
-    ? Math.max(0, 2 - get("_pantsgivingFullness")) * 8
-    : 0;
+  const pantsgivingAdventures =
+    !globalOptions.nodiet && have($item`Pantsgiving`)
+      ? Math.max(0, 2 - get("_pantsgivingFullness")) * 8
+      : 0;
   const sausageAdventures = howManySausagesCouldIEat();
   const thesisAdventures =
     have($familiar`Pocket Professor`) && !get("_thesisDelivered") ? 11 : 0;

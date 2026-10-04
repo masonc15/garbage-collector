@@ -80,7 +80,7 @@ import {
 import { meatMood } from "./mood";
 import { checkFamiliarAbilities } from "./familiar/preflight";
 import { potionSetup } from "./potions";
-import { endSession, startSession } from "./session";
+import { endSession, startSession, trackMarginalMpa } from "./session";
 import { estimatedGarboTurns } from "./turns";
 import { garboAverageValue } from "./garboValue";
 import {
@@ -624,7 +624,9 @@ export function main(argString = ""): void {
           runGarboQuests([BuffExtensionQuest, PostBuffExtensionQuest]);
           if (!targetingMeat()) runGarboQuests([EmbezzlerFightsQuest]);
           try {
+            trackMarginalMpa();
             runGarboQuests([PostQuest(), ...FarmQuests]);
+            trackMarginalMpa();
             runGarboQuests([FinishUpQuest]);
           } finally {
             setAutoAttack(0);
