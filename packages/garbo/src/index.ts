@@ -644,7 +644,7 @@ export function main(argString = ""): void {
     setCombatFlags(...combatFlags);
     if (startingGarden && have(startingGarden)) use(startingGarden);
     printEventLog();
-    endSession();
+    endSession(true, argString);
     printLog(HIGHLIGHT);
   }
   set(completedProperty, ["garbo", argString].filter(Boolean).join(" "));

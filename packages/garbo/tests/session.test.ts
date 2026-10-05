@@ -7,9 +7,16 @@ const state = vi.hoisted(() => ({
   remaining: 300,
   output: [] as string[],
   prefs: new Map<string, unknown>(),
+  files: new Map<string, string>(),
 }));
 vi.mock("kolmafia", () => ({
   print: (s: string) => state.output.push(s),
+  bufferToFile: (text: string, path: string) => {
+    state.files.set(path, text);
+    return true;
+  },
+  myId: () => "3536925",
+  rollover: () => 1791257400,
   myName: () => "noctys",
   todayToString: () => "20261004",
   totalTurnsPlayed: () => state.turns,
@@ -69,6 +76,7 @@ beforeEach(async () => {
     output: [],
   });
   state.prefs.clear();
+  state.files.clear();
   startSession();
 });
 function sample(turn: number, remaining: number, meat = turn * 3000) {
@@ -170,4 +178,42 @@ test("modeled familiar adjustment only applies inside its item window", () => {
 test("zero-turn farming reports insufficient data without numeric MPA", () => {
   sample(0, 0);
   expect(report()).toMatchObject({ status: "insufficient-data", turns: 0 });
+});
+
+test("each finished run saves one structured record to data/garbo-runs", () => {
+  state.prefs.set("valueOfAdventure", 4000);
+  sample(0, 300, 0);
+  for (let turn = 1; turn <= 300; turn++) sample(turn, 300 - turn);
+  endSession(true, "nodiet");
+  expect([...state.files.keys()]).toEqual([
+    expect.stringMatching(/^garbo-runs\/noctys-\d{8}T\d{6}Z\.json$/),
+  ]);
+  const [path, text] = [...state.files][0];
+  const record = JSON.parse(text);
+  expect(record).toMatchObject({
+    schemaVersion: 1,
+    kind: "garbo-run",
+    account: "noctys",
+    playerId: "3536925",
+    date: "20261004",
+    rollover: 1791257400,
+    args: "nodiet",
+    valueOfAdventure: 4000,
+    turnsPlayed: 300,
+    run: { turns: 300, meat: 900000, items: 0, total: 900000 },
+    marginal: { status: "measured", raw: 3000, total: 3000 },
+    lateRun: { status: "measured", turns: 50, netMpa: 3000 },
+  });
+  expect(state.output).toContain(`Saved this run's record to data/${path}.`);
+});
+test("a run without a sampling window still saves its record", () => {
+  endSession();
+  const record = JSON.parse([...state.files.values()][0]);
+  expect(record.marginal).toEqual({ status: "unavailable" });
+  expect(record.lateRun).toMatchObject({ status: "insufficient-data" });
+  expect(record.run.turns).toBe(0);
+});
+test("the stash-return session end saves nothing", () => {
+  endSession(false);
+  expect(state.files.size).toBe(0);
 });

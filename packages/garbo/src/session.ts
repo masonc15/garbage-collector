@@ -1,4 +1,13 @@
-import { Item, myName, print, todayToString } from "kolmafia";
+import {
+  bufferToFile,
+  Item,
+  myId,
+  myName,
+  print,
+  rollover,
+  todayToString,
+  totalTurnsPlayed,
+} from "kolmafia";
 import { $items, get, Session, set } from "libram";
 import { globalOptions } from "./config";
 import { formatNumber, HIGHLIGHT, resetDailyPreference } from "./lib";
@@ -109,7 +118,7 @@ function recordMarginalSnapshot(
 
 const outlierItemList = $items`Extrovermectin™, Volcoino, Poké-Gro fertilizer`;
 
-function printLateRunSession() {
+function printLateRunSession(): Record<string, unknown> {
   const start = lateSnapshots[0];
   const end = lateEnd;
   const turns = start && end ? end.totalTurns - start.totalTurns : 0;
@@ -125,10 +134,9 @@ function printLateRunSession() {
       "late farming interval; includes intervening side trips and free fights; excludes subsequent cleanup",
   };
   if (!start || !end || turns <= 0) {
-    print(
-      `GARBO_LATE_RUN ${JSON.stringify({ ...identity, status: "insufficient-data", turns: 0 })}`,
-    );
-    return;
+    const report = { ...identity, status: "insufficient-data", turns: 0 };
+    print(`GARBO_LATE_RUN ${JSON.stringify(report)}`);
+    return report;
   }
   const { meat, items, itemDetails } = end.diff(start).value(garboValue);
   const details = itemDetails.map((d) => ({
@@ -170,9 +178,22 @@ function printLateRunSession() {
     `Late-run net MPA (${turns} paid turns): ${report.netMpa.toFixed(2)}; excluding positive outliers: ${report.adjustedMpa.toFixed(2)}. Item values are estimates; inspect GARBO_LATE_RUN before changing valueOfAdventure.`,
     HIGHLIGHT,
   );
+  return report;
 }
 
-function printMarginalSession() {
+type MarginalRecord = {
+  status: "measured" | "insufficient-turns" | "unavailable";
+  meatTurns?: number;
+  itemTurns?: number;
+  raw?: number;
+  items?: number;
+  outliers?: number;
+  total?: number;
+  totalWithOutliers?: number;
+  outlierItems?: { item: string; quantity: number; value: number }[];
+};
+
+function printMarginalSession(): MarginalRecord {
   const barf = sessions.get("barf");
   const meatStart = sessions.get("meat-start");
   const meatEnd = sessions.get("meat-end");
@@ -242,6 +263,21 @@ function printMarginalSession() {
         )} [w/ outliers])`,
         HIGHLIGHT,
       );
+      return {
+        status: "measured",
+        meatTurns: meatEnd.totalTurns - meatStart.totalTurns,
+        itemTurns: itemEnd.totalTurns - itemStart.totalTurns,
+        raw: meatMpa.mpa.meat,
+        items: itemMpa.mpa.items,
+        outliers: itemMpa.mpa.total - itemMpa.mpa.effective,
+        total: effectiveMpa,
+        totalWithOutliers: totalMpa,
+        outlierItems: itemMpa.outlierItems.map((d) => ({
+          item: String(d.item),
+          quantity: d.quantity,
+          value: d.value,
+        })),
+      };
     } else {
       // MPA printout excluding marginal items
       print(
@@ -258,12 +294,54 @@ function printMarginalSession() {
         )} [total]`,
         HIGHLIGHT,
       );
+      return {
+        status: "insufficient-turns",
+        meatTurns: meatEnd.totalTurns - meatStart.totalTurns,
+        raw: meatMpa.mpa.meat,
+        items: meatMpa.mpa.items,
+        total: meatMpa.mpa.total,
+      };
     }
   } else {
     print(
       "Marginal MPA unavailable: no positive-width meat sampling window. See late-run measurement.",
       "red",
     );
+    return { status: "unavailable" };
+  }
+}
+
+/**
+ * Save everything this run reported as one JSON file in KoLmafia's data
+ * directory, data/garbo-runs/<account>-<UTC stamp>.json. The gCLI lines above
+ * are easy to lose (scrollback, sessions without a mirror); this file is not.
+ * Nothing reads it during play.
+ */
+function saveRunRecord(details: Record<string, unknown>): void {
+  const recordedAt = new Date();
+  const stamp = recordedAt
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d+Z$/, "Z");
+  const record = {
+    schemaVersion: 1,
+    kind: "garbo-run",
+    account: myName(),
+    playerId: myId(),
+    date: todayToString(),
+    recordedAt: recordedAt.toISOString(),
+    rollover: rollover(),
+    build: process.env.GITHUB_REF_NAME ?? "CustomBuild",
+    nodiet: globalOptions.nodiet,
+    valueOfAdventure: get("valueOfAdventure"),
+    turnsPlayed: totalTurnsPlayed(),
+    ...details,
+  };
+  const path = `garbo-runs/${myName().toLowerCase()}-${stamp}.json`;
+  if (bufferToFile(JSON.stringify(record), path)) {
+    print(`Saved this run's record to data/${path}.`);
+  } else {
+    print(`Could not save this run's record to data/${path}.`, "red");
   }
 }
 
@@ -288,7 +366,7 @@ function resetGarboDaily() {
   }
 }
 
-export function endSession(printLog = true): void {
+export function endSession(printLog = true, args = ""): void {
   // force marginal mpa to always have a 0 turns remaining calculation
   recordMarginalSnapshot(0, true);
   resetGarboDaily();
@@ -333,8 +411,25 @@ export function endSession(printLog = true): void {
     message("This run of garbo", turns, meat, items);
     message("So far today", totalTurns, totalMeat, totalItems);
 
-    printMarginalSession();
-    printLateRunSession();
+    const marginal = printMarginalSession();
+    const lateRun = printLateRunSession();
+    saveRunRecord({
+      args,
+      run: { turns, meat, items, total: meat + items },
+      today: {
+        turns: totalTurns,
+        meat: totalMeat,
+        items: totalItems,
+        total: totalMeat + totalItems,
+      },
+      marginal,
+      lateRun,
+      items: itemDetails.map((d) => ({
+        item: String(d.item),
+        quantity: d.quantity,
+        value: d.value,
+      })),
+    });
   }
   if (globalOptions.loginvalidwishes) {
     if (failedWishes.length === 0) {
