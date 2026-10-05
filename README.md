@@ -86,6 +86,15 @@ change `valueOfAdventure`. This observed report is separate from the legacy
 `Marginal MPA` calculation, which uses different meat/item windows and a modeled
 familiar opportunity adjustment.
 
+### Nightcap run records
+
+Each finished run also writes `data/garbo-runs/<account>-<UTC stamp>.json` in
+KoLmafia's directory. It holds the run's arguments, `valueOfAdventure`, this
+run's and today's turns, meat and item value, the Marginal MPA parts with a
+status (`measured`, `insufficient-turns` or `unavailable`), the late-run report
+above, and every item gained or used with its `garboValue`. Nothing reads the
+file during play; it is there for later analysis.
+
 ### Set your VIP clan
 
 If you have a VIP Lounge Key, Garbo will try to make use of any VIP furniture to augment its farming. To set your VIP clan, copy the name of your intended VIP clan and run the following code (using BAFH as an example):

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.1-nightcap.9 - 2026-10-05
+
+- Save each finished run as one JSON file in KoLmafia's data directory,
+  `data/garbo-runs/<account>-<UTC stamp>.json`: arguments, valueOfAdventure,
+  this run's and today's totals, the Marginal MPA parts (or why there were
+  none), the GARBO_LATE_RUN report, and every item gained or used. Runs started
+  from the GUI, a script menu or a headless session are kept the same way.
+- No gameplay change.
+
 ## 1.0.1-nightcap.8 - 2026-10-04
 
 - Repair marginal sampling for nodiet runs, forward elapsed turns, short runs,
