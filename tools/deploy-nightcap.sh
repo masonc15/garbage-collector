@@ -11,6 +11,14 @@ host=${GARBO_HOST:-nuada-ts}
 version=$(node -p 'require("./packages/garbo/package.json").version')
 [[ "$version" =~ ^[A-Za-z0-9._-]+$ ]] || exit 2
 git diff --quiet HEAD -- packages yarn.lock || { echo 'Commit source changes before deployment.' >&2; exit 1; }
+# The hourly upstream sync on nuada pushes merges to the fork. Publishing from a
+# checkout without them would roll every account back to an older release.
+branch=$(git rev-parse --abbrev-ref HEAD)
+if git remote get-url fork >/dev/null 2>&1 && git fetch -q fork "$branch" 2>/dev/null \
+    && ! git merge-base --is-ancestor "fork/$branch" HEAD; then
+    echo "fork/$branch has commits this checkout lacks; pull them first." >&2
+    exit 1
+fi
 export GITHUB_SHA=$(git rev-parse HEAD)
 export GITHUB_REF_NAME="nightcap-$version"
 yarn() { node .yarn/releases/yarn-3.6.4.cjs "$@"; }
@@ -79,6 +87,11 @@ aliases = {'garbo': 'garbo-nightcap'}
 (root / 'release.json').write_text(json.dumps(dict(package='garbo', version=meta['version'], paths=paths, files=files, retired=retired, aliases=aliases), indent=2) + '\n')
 PACK
 [ "$mode" != --build-only ] || exit 0
+if [ "$host" = local ]; then # on nuada itself (tools/sync-upstream.sh)
+    kol=${KOL_DIR:-$HOME/docker/kol}
+    python3 "$kol/docker/runner/managed_scripts.py" publish --state "$kol/state" --source "$PWD/dist"
+    exit 0
+fi
 remote=$(ssh "$host" 'mktemp -d /tmp/kol-garbo.XXXXXXXX')
 rsync -az dist/ "$host:$remote/"
 ssh "$host" "python3 ~/docker/kol/docker/runner/managed_scripts.py publish --state ~/docker/kol/state --source '$remote'"
