@@ -7,6 +7,7 @@
 # once tests, the build and the typecheck pass, and pushes it to the fork. Then it
 # publishes whatever the fork branch holds if nuada runs anything else.
 #
+# Each successful publish is emailed with the commits it brought in.
 # Nothing that fails is pushed or published. A conflict or failure is emailed
 # once per upstream commit and retried every hour; publishing while an account
 # session holds a lease is retried quietly. Failures exit from inside functions,
@@ -36,6 +37,25 @@ notify() { # $1=key sent once, $2=subject, stdin=body
 deployed_version() {
     python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["version"])' \
         "$KOL_DIR/state/managed-scripts/garbo/current/release.json"
+}
+
+deployed_commit() { # empty if the release predates the record
+    python3 -c 'import json, sys; print(json.load(open(sys.argv[1])).get("commit", ""))' \
+        "$KOL_DIR/state/managed-scripts/garbo/current/data/nightcap-garbo-release.json" 2>/dev/null || true
+}
+
+published_report() { # $1=new version, $2=old version, $3=old commit
+    local upstream fork
+    printf '%s\n' "garbo $1 is published to every nuada account, replacing $2." \
+        "The Mac installs it within the hour once KoLmafia is idle." ""
+    if [ -n "$3" ] && git cat-file -e "$3^{commit}" 2>/dev/null; then
+        upstream=$(git log --no-merges --format='  %h %s' "$3..upstream/main")
+        fork=$(git log --no-merges --format='  %h %s' "$3..HEAD" ^upstream/main)
+        printf '%s\n' "Upstream commits ($(printf '%s' "$upstream" | grep -c .)):" "${upstream:-  none}" "" \
+            "Nightcap commits:" "${fork:-  none}"
+    else
+        echo "The previous release recorded no commit, so there is no change list."
+    fi
 }
 
 merge_upstream() {
@@ -105,9 +125,10 @@ main() {
     # Keep the fork's main the same as upstream's (GitHub's "Sync fork").
     git push -q fork upstream/main:refs/heads/main || log "could not update the fork's main"
 
-    local version deployed
+    local version deployed old_commit
     version=$(node -p 'require("./packages/garbo/package.json").version')
     deployed=$(deployed_version)
+    old_commit=$(deployed_commit)
     if [ "$version" = "$deployed" ]; then
         log "up to date: $version"
         return 0
@@ -115,6 +136,8 @@ main() {
     log "publishing $version (nuada runs $deployed)"
     if GARBO_HOST=local tools/deploy-nightcap.sh >"$STATE_DIR/publish.log" 2>&1; then
         log "published $version"
+        published_report "$version" "$deployed" "$old_commit" \
+            | notify "published-$version" "garbo upstream sync: published $version"
     elif grep -q "account lease is active" "$STATE_DIR/publish.log"; then
         log "an account session is active; publishing next hour"
     else
