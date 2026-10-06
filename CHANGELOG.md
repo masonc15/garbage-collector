@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.1-nightcap.10 - 2026-10-05
+
+- Tidy the end-of-run summary. The `GARBO_LATE_RUN` JSON line is gone; the
+  late-run measurement lives only in the run record (`lateRun`), and the gCLI
+  shows one `Late-run MPA (last N turns)` line. Runner 0.2.60 reads it from the
+  record.
+- Extreme Items no longer lists worthless items as losses, lists losses worst
+  first, and adds thousands separators. Empty `Extreme Items:` and `Outliers:`
+  headers are not printed.
+- No gameplay change.
+
 ## 1.0.1-nightcap.9 - 2026-10-05
 
 - Save each finished run as one JSON file in KoLmafia's data directory,

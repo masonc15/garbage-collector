@@ -61,8 +61,9 @@ Add all these together and voila - your own `valueOfAdventure`!
 
 ### Nightcap late-run measurement
 
-Nightcap also prints `GARBO_LATE_RUN` JSON and a readable net-MPA summary at
-the end of a farming run. No extra gameplay is started to collect it. The
+Nightcap also measures net MPA over the last farming turns. It prints one
+`Late-run MPA` line at the end of a run and saves the full measurement as
+`lateRun` in the run record below. No extra gameplay is started to collect it. The
 rolling window targets the final 50 paid turns, using actual snapshot bounds;
 short windows are labeled and zero-turn windows never produce a numeric MPA.
 Free fights and intervening side trips are included, but subsequent finish-up
@@ -75,7 +76,7 @@ these are estimated liquidation/opportunity values, not realized sales or
 necessarily replacement costs. A purchased-and-consumed item is already charged
 through cash spending and is not charged again as inventory depletion. Costs
 incurred before the window, buff amortization, unrelated sales, and unobserved
-costs are not separately reconciled. Inspect the session log alongside the JSON.
+costs are not separately reconciled. Inspect the session log alongside the record.
 
 The report retains item quantities, unit values, window bounds, account, date,
 build, `nodiet`, and configured `valueOfAdventure`. `netMpa` retains every recorded
