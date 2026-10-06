@@ -10,17 +10,17 @@ import {
   Guzzlr,
   have,
 } from "libram";
-import { freeFightFamiliar, meatFamiliar } from "../familiar";
+import { freeFightFamiliar } from "../familiar/freeFightFamiliar";
+import { meatFamiliar, underwaterMeatFamiliar } from "../familiar/meatFamiliar";
 import { chooseBjorn } from "./bjorn";
 import { bonusGear, toyCupidBow } from "./dropsgear";
 import {
   applyCheeseBonus,
   bestBjornalike,
   cleaverCheck,
-  familiarWaterBreathingEquipment,
+  familiarSlotNeededForBreathing,
   useUPCsIfNeeded,
   validateGarbageFoldable,
-  waterBreathingEquipment,
 } from "./lib";
 import {
   BonusEquipMode,
@@ -29,14 +29,14 @@ import {
   targetingMeat,
 } from "../lib";
 import { globalOptions } from "../config";
-import { meatDrop } from "kolmafia";
+import { meatDrop, setLocation } from "kolmafia";
 import { shouldRedigitize } from "../combat";
 import { nextWeekReady } from "../resources/sealclub";
 import { AdventureArgument, toAdventure } from "../garboWanderer";
 
 export function meatTargetOutfit(
-  spec: OutfitSpec = {},
-  adventureArgument?: AdventureArgument,
+  spec: OutfitSpec,
+  adventureArgument: AdventureArgument,
 ): Outfit {
   cleaverCheck();
   validateGarbageFoldable(spec);
@@ -46,6 +46,7 @@ export function meatTargetOutfit(
   );
 
   const { location, target } = toAdventure(adventureArgument ?? $location.none);
+  setLocation(location);
   if (location === $location`Crab Island`) {
     const meat = meatDrop($monster`giant giant crab`) + songboomMeat();
     outfit.modifier.push(`${meat / 100} Meat Drop`, "-tie");
@@ -82,10 +83,14 @@ export function meatTargetOutfit(
     targetingMeat() ? BonusEquipMode.MEAT_TARGET : BonusEquipMode.FREE,
   );
   outfit.avoid.push($item`cheap sunglasses`); // Even if we're adventuring in Barf Mountain itself, these are bad
+  const familiarNeedsToBreathe = familiarSlotNeededForBreathing(location);
   outfit.familiar ??= targetingMeat()
-    ? meatFamiliar()
+    ? familiarNeedsToBreathe
+      ? underwaterMeatFamiliar()
+      : meatFamiliar()
     : freeFightFamiliar(location ?? globalOptions.target, {
-        equipmentForced: !outfit.canEquip($item`toy Cupid bow`),
+        equipmentForced:
+          familiarNeedsToBreathe || !outfit.canEquip($item`toy Cupid bow`),
       });
 
   const bjornChoice = chooseBjorn(
@@ -95,16 +100,13 @@ export function meatTargetOutfit(
 
   const underwater = location?.environment === "underwater";
   if (underwater) {
-    if (!outfit.familiar.underwater) {
-      outfit.equipFirst(familiarWaterBreathingEquipment);
-    }
-
-    if (!outfit.equipFirst(waterBreathingEquipment)) {
-      outfit.modifier.push("sea");
-    }
+    outfit.modifier.push("sea");
   }
 
-  if (outfit.familiar === $familiar`Jill-of-All-Trades`) {
+  if (
+    outfit.familiar === $familiar`Jill-of-All-Trades` &&
+    !familiarSlotNeededForBreathing(location, outfit.familiar)
+  ) {
     outfit.equip($item`LED candle`);
     outfit.setModes({ jillcandle: "ultraviolet" });
   }

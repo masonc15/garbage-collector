@@ -67,7 +67,9 @@ import {
   $modifier,
   $skill,
   $thrall,
+  arrayEquals,
   AsdonMartin,
+  canRememberSong,
   clamp,
   DesignerSweatpants,
   Diet,
@@ -92,18 +94,16 @@ import {
   uneffect,
   unequip,
   withProperties,
+  withProperty,
 } from "libram";
 import { acquire, priceCaps } from "./acquire";
 import { withVIPClan } from "./clan";
 import { globalOptions } from "./config";
+import { beretEffectValue } from "./resources/beret";
+import { expectedGregs } from "./resources/extrovermectin";
+import { shouldAugustCast } from "./resources/scepter";
+import { synthesize } from "./resources/synthesis";
 import {
-  beretEffectValue,
-  expectedGregs,
-  shouldAugustCast,
-  synthesize,
-} from "./resources";
-import {
-  arrayEquals,
   HIGHLIGHT,
   MEAT_TARGET_MULTIPLIER,
   targetingMeat,
@@ -119,6 +119,7 @@ import {
 } from "./turns";
 import { garboValue } from "./garboValue";
 import { GarboWorkshed } from "./tasks/post/worksheds";
+import { FarmingStrategy } from "./farmingStrategy";
 
 const MPA = get("valueOfAdventure");
 print(`Using adventure value ${MPA}.`, HIGHLIGHT);
@@ -142,7 +143,7 @@ function consumeWhileRespectingMoonRestaurant(command: () => void, item: Item) {
     {
       autoSatisfyWithCloset:
         !usingMoonZoneRestaurant && get("autoSatisfyWithCloset"),
-      autoSatisfyWithMall: !usingMoonZoneRestaurant,
+      autoSatisfyWithMall: false,
     },
     command,
   );
@@ -181,7 +182,9 @@ function eatSafe(qty: number, item: Item) {
   }, item);
 }
 
-const EXPENSIVE_SONGS = $effects`The Ballad of Richie Thingfinder, Chorale of Companionship`;
+const EXPENSIVE_SONGS = FarmingStrategy.isUnderwater()
+  ? $effects`The Ballad of Richie Thingfinder, Chorale of Companionship, Donho's Bubbly Ballad`
+  : $effects`The Ballad of Richie Thingfinder, Chorale of Companionship`;
 const USEFUL_SONGS = $effects`Polka of Plenty, Ur-Kel's Aria of Annoyance, Fat Leon's Phat Loot Lyric`;
 function shrugForOde() {
   const inexpensiveSongs = getActiveSongs().filter(
@@ -228,6 +231,9 @@ function drinkSafe(qty: number, item: Item) {
     const odeTurns = qty * item.inebriety;
     const castTurns = odeTurns - haveEffect($effect`Ode to Booze`);
     if (castTurns > 0) {
+      if (!canRememberSong() && !have($effect`Ode to Booze`)) {
+        throw new Error("Unable to make a song slot for Ode to Booze!");
+      }
       useSkill(
         $skill`The Ode to Booze`,
         Math.ceil(castTurns / turnsPerCast($skill`The Ode to Booze`)),
@@ -250,7 +256,9 @@ function drinkSafe(qty: number, item: Item) {
 }
 
 function chewSafe(qty: number, item: Item) {
-  if (!chew(qty, item)) throw "Failed to chew safely";
+  withProperty("autoSatisfyWithMall", false, () => {
+    if (!chew(qty, item)) throw "Failed to chew safely";
+  });
 }
 
 function consumeSafe(
@@ -268,7 +276,7 @@ function consumeSafe(
   if (!skipAcquire && !usingMoonZoneRestaurant) {
     if (averageAdventures > 0 || additionalValue) {
       const cap = Math.max(0, averageAdventures * MPA) + (additionalValue ?? 0);
-      acquire(qty, item, cap, true);
+      acquire(qty, item, cap, true, undefined, true);
     } else {
       acquire(qty, item);
     }
@@ -858,7 +866,7 @@ function ingredientCost(item: Item): number {
  * @param targets number of target monsters expected to be encountered on this day
  * @param turns number of turns total expecte
  */
-export function potionMenu(
+function potionMenu(
   baseMenu: MenuItem<Note>[],
   targets: number,
   turns: number,
@@ -1053,6 +1061,10 @@ function balanceMenu(
     if (iterations <= 0) {
       return fullMenu;
     } else {
+      print(
+        `Calculating diet, please wait${".....".slice(0, iterations)}`,
+        HIGHLIGHT,
+      );
       const balancingDiet = dietPlanner(fullMenu);
       return rebalance(
         menu,
@@ -1072,7 +1084,6 @@ export function computeDiet(): {
   pantsgiving: () => Diet<Note>;
   sweatpants: () => Diet<Note>;
 } {
-  print("Calculating diet, please wait...", HIGHLIGHT);
   // Handle spleen manually, as the diet planner doesn't support synth. Only fill food and booze.
 
   const orEmpty = (diet: Diet<Note>) =>
@@ -1496,7 +1507,7 @@ export function runDiet(): void {
           $item`Asdon Martin keyfob (on ring)`
         ) {
           AsdonMartin.drive(
-            $effect`Driving Observantly`,
+            FarmingStrategy.asdonEffect,
             dietAdventures(dietBuilder.diet()) +
               (globalOptions.ascend ? 0 : estimatedTurnsTomorrow),
           );
@@ -1528,7 +1539,14 @@ export function runDiet(): void {
       }
 
       consumeDiet(dietBuilder.diet(), "FULL");
-
+      const organChecks = [
+        { current: myInebriety, max: inebrietyLimit },
+        { current: mySpleenUse, max: spleenLimit },
+        { current: myFullness, max: fullnessLimit },
+      ];
+      if (organChecks.some(({ current, max }) => current() < max())) {
+        throw new Error("Tried to fill our organs but couldn't!");
+      }
       shrugBadEffects();
     }
   });

@@ -1,0 +1,21 @@
+{{item}}
+
+==Obtained From==
+;Obsoleted Areas/Methods
+::Stores
+:::[[Mr. Store]] (1 [[Mr. Accessory]])
+
+==When Used==
+*Without a membership:
+You fill out the forms in the packet and take them to the LyleCo kiosk at the monorail station in town.
+
+Time to escape to a realm of swashbuckling adventure!
+*Otherwise:
+You've already got a lifetime membership to PirateRealm.
+
+==Notes==
+{{IotM Description|date=April 2019|desc=Unlock a realm of swashbuckling adventure!}}
+Allows permanent access to [[PirateRealm]]
+
+{{Collection|10187}}
+{{Mr Store 2019}}

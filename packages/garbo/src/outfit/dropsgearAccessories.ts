@@ -3,7 +3,6 @@ import {
   itemAmount,
   Modifier,
   myClass,
-  setLocation,
   stringModifier,
   toSlot,
 } from "kolmafia";
@@ -11,13 +10,13 @@ import {
   $class,
   $item,
   $items,
-  $location,
   $skill,
   $slot,
   CinchoDeMayo,
   get,
   getModifier,
   have,
+  LaughingStock,
   lgrCurrencies,
   sum,
   sumNumbers,
@@ -30,10 +29,13 @@ import {
   maxPassiveDamage,
   modeIsFree,
   monsterManuelAvailable,
+  withLocation,
 } from "../lib";
-import { maximumPinataCasts } from "../resources";
+import { maximumPinataCasts } from "../resources/yachtzee";
 import { globalOptions } from "../config";
 import { garboAverageValue, garboValue } from "../garboValue";
+import { FarmingStrategy } from "../farmingStrategy";
+import { estimatedGarboTurns } from "../turns";
 
 function mafiaThumbRing(mode: BonusEquipMode) {
   if (!have($item`mafia thumb ring`) || modeIsFree(mode)) {
@@ -137,8 +139,8 @@ function cinchoDeMayo(mode: BonusEquipMode) {
     !monsterManuelAvailable() ||
     // If we're doing Yachtzees, only use up excess cincho.
     maximumPinataCasts() <= 0 ||
-    // If we have more than 50 passive damage, we'll never be able to cast projectile pinata without risking the monster dying
-    maxPassiveDamage() >= 50
+    // If we have more than 50 passive damage, we'll never be able to cast projectile pinata without risking the monster dying.  Cows are tankier though.
+    maxPassiveDamage() >= (FarmingStrategy.isUnderwater() ? 150 : 50)
   ) {
     return new Map<Item, number>([]);
   }
@@ -147,7 +149,7 @@ function cinchoDeMayo(mode: BonusEquipMode) {
   return new Map<Item, number>([[$item`Cincho de Mayo`, 3 * felizValue()]]);
 }
 
-function calculateLaughingStockBonus() {
+function calculateLaughingStockBonus(alwaysUseHorizon: boolean) {
   const basicFruitValue = garboAverageValue(
     ...$items`orange, grapefruit, grapes, lemon, lime, papaya, cranberries, strawberry, cherry, kumquat, tangerine, raspberry, kiwi, blackberry, banana, cactus fruit, plum, pear, peach`,
   );
@@ -155,24 +157,29 @@ function calculateLaughingStockBonus() {
     ...$items`classic banana, antique watermelon, quince`,
   );
 
-  const fruitsDropped = get("_laughingStockFruitDropped", 0);
+  const horizonValue = 0.02 * (0.1 * classicFruitValue + 0.9 * basicFruitValue);
 
-  // if we have 11 fruit drops, it's a 1/50 chance, split to 1/10 classic and 9/10 basic
-  if (fruitsDropped >= 11) {
-    return 0.02 * (0.1 * classicFruitValue + 0.9 * basicFruitValue);
+  if (alwaysUseHorizon) return horizonValue;
+
+  const nextDrop = LaughingStock.nextDrop();
+
+  if (nextDrop) {
+    const [fruit, fights] = nextDrop;
+    if (fights > estimatedGarboTurns()) return 0;
+    return Math.max(garboValue(fruit) / fights, horizonValue);
   }
-  // otherwise it's seeded, but we are guaranteed at least 3 classic drops in 9 fights
-  // and otherwise it's a 1/10 chance of being special
-  // it takes 56 turns to get all the fruit
-  return (3.8 * classicFruitValue + 7.2 * basicFruitValue) / 56;
+
+  return horizonValue;
 }
 
-function portableLaughingStock() {
-  if (!have($item`Portable Laughing Stock`)) {
+function portableLaughingStock(mode: BonusEquipMode) {
+  if (!have($item`Portable Laughing Stock`) || mode === BonusEquipMode.DMT) {
     return new Map<Item, number>([]);
   }
 
-  const laughingStockBonus = calculateLaughingStockBonus();
+  const laughingStockBonus = calculateLaughingStockBonus(
+    mode !== BonusEquipMode.MEAT_TARGET,
+  );
 
   return new Map<Item, number>([
     [$item`Portable Laughing Stock`, laughingStockBonus],
@@ -189,7 +196,7 @@ export function bonusAccessories(mode: BonusEquipMode): Map<Item, number> {
     ...mafiaThumbRing(mode),
     ...luckyGoldRing(mode),
     ...mrCheengsSpectacles(),
-    ...portableLaughingStock(),
+    ...portableLaughingStock(mode),
     ...mrScreegesSpectacles(),
     ...cinchoDeMayo(mode),
   ]);
@@ -210,21 +217,24 @@ export function usingThumbRing(): boolean {
     const gear = bonusAccessories(BonusEquipMode.BARF);
     const accessoryBonuses = [...gear.entries()].filter(([item]) => have(item));
 
-    setLocation($location`Barf Mountain`);
-    const meatAccessories = Item.all()
-      .filter(
-        (item) =>
-          have(item) &&
-          toSlot(item) === $slot`acc1` &&
-          getModifier("Meat Drop", item) > 0,
-      )
-      .map(
-        (item) =>
-          [item, (getModifier("Meat Drop", item) * baseMeat()) / 100] as [
-            Item,
-            number,
-          ],
-      );
+    // Mafia resolves env()/zone()/loc() modifiers against the last location
+    // set, so restore it or unrelated gear is priced against this one.
+    const meatAccessories = withLocation(FarmingStrategy.location, () =>
+      Item.all()
+        .filter(
+          (item) =>
+            have(item) &&
+            toSlot(item) === $slot`acc1` &&
+            getModifier("Meat Drop", item) > 0,
+        )
+        .map(
+          (item) =>
+            [item, (getModifier("Meat Drop", item) * baseMeat()) / 100] as [
+              Item,
+              number,
+            ],
+        ),
+    );
 
     const accessoryValues = new Map<Item, number>(accessoryBonuses);
     for (const [accessory, value] of meatAccessories) {

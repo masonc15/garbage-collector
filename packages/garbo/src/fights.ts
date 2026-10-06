@@ -2,7 +2,6 @@ import { Outfit, OutfitSpec } from "grimoire-kolmafia";
 import {
   adv1,
   availableAmount,
-  buy,
   canAdventure,
   canEquip,
   cliExecute,
@@ -14,7 +13,6 @@ import {
   familiarEquippedEquipment,
   getAutoAttack,
   haveOutfit,
-  inebrietyLimit,
   isBanished,
   Item,
   itemAmount,
@@ -27,7 +25,6 @@ import {
   myBuffedstat,
   myClass,
   myFamiliar,
-  myInebriety,
   myLevel,
   myThrall,
   myTurncount,
@@ -106,24 +103,22 @@ import { withStash } from "./clan";
 import { garboAdventure, garboAdventureAuto, Macro, withMacro } from "./combat";
 import { globalOptions } from "./config";
 import { postFreeFightDailySetup } from "./dailiespost";
-import { copyTargetSources, getNextCopyTargetFight } from "./target";
+
 import {
-  bestMidnightAvailable,
   crateStrategy,
   doingGregFight,
-  gregReady,
   initializeExtrovermectinZones,
   saberCrateIfSafe,
-  shouldClara,
-  shouldUnlockIngredients,
-  tryFillLatte,
-  willYachtzee,
-} from "./resources";
+} from "./resources/extrovermectin";
+import { bestMidnightAvailable } from "./resources/gingerbread";
+import { shouldUnlockIngredients, tryFillLatte } from "./resources/latte";
+import { shouldClara, willYachtzee } from "./resources/yachtzee";
+import { freeFightFamiliar } from "./familiar/freeFightFamiliar";
 import {
-  freeFightFamiliar,
   meatFamiliar,
   setBestLeprechaunAsMeatFamiliar,
-} from "./familiar";
+  underwaterMeatFamiliar,
+} from "./familiar/meatFamiliar";
 import {
   aprilFoolsRufus,
   asArray,
@@ -140,9 +135,6 @@ import {
   isFreeAndCopyable,
   isStrongScaler,
   kramcoGuaranteed,
-  lastAdventureWasWeird,
-  logMessage,
-  ltbRun,
   mapMonster,
   maxPassiveDamage,
   monsterManuelAvailable,
@@ -152,34 +144,28 @@ import {
   romanticMonsterImpossible,
   safeRestore,
   setChoice,
+  sober,
   targetingMeat,
   targetMeat,
   tryFindFreeRunOrBanish,
   userConfirmDialog,
   valueDrops,
 } from "./lib";
+import { logMessage } from "./log";
 import { freeFightMood, meatMood } from "./mood";
-import {
-  freeFightOutfit,
-  FreeFightOutfitMenuOptions,
-  magnifyingGlass,
-  meatTargetOutfit,
-  toSpec,
-} from "./outfit";
+import { magnifyingGlass } from "./outfit/dropsgear";
+import { freeFightOutfit, FreeFightOutfitMenuOptions } from "./outfit/free";
+import { toSpec } from "./outfit/lib";
+import { meatTargetOutfit } from "./outfit/target";
 import postCombatActions from "./post";
 import { bathroomFinance, potionSetup } from "./potions";
 import { garboValue } from "./garboValue";
 import { wanderer } from "./garboWanderer";
 import { runTargetFight } from "./target/execution";
 import { TargetFightRunOptions } from "./target/staging";
+
 import {
-  EmbezzlerFightsQuest,
   FreeFightQuest,
-  FreeMimicEggDonationQuest,
-  runGarboQuests,
-} from "./tasks";
-import {
-  expectedFreeFightQuestFights,
   possibleFreeFightQuestTentacleFights,
 } from "./tasks/freeFight";
 import { PostQuest } from "./tasks/post";
@@ -187,7 +173,15 @@ import {
   expectedFreeGiantSandwormQuestFights,
   FreeGiantSandwormQuest,
 } from "./tasks/freeGiantSandworm";
-import { CopyTargetFight } from "./target/fights";
+import {
+  CopyTargetFight,
+  copyTargetSources,
+  getNextCopyTargetFight,
+} from "./target/fights";
+import {
+  timeSpinnerRefused,
+  travelToRecentFight,
+} from "./resources/timeSpinner";
 import {
   BuffExtensionQuest,
   PostBuffExtensionQuest,
@@ -298,57 +292,6 @@ function meatTargetSetup() {
   }
 }
 
-function startWandererCounter() {
-  const nextFight = getNextCopyTargetFight();
-  if (
-    !nextFight ||
-    nextFight.canInitializeWandererCounters ||
-    nextFight.draggable
-  ) {
-    return;
-  }
-  const digitizeNeedsStarting =
-    Counter.get("Digitize Monster") === Infinity &&
-    SourceTerminal.getDigitizeUses() !== 0;
-  const romanceNeedsStarting =
-    get("_romanticFightsLeft") > 0 &&
-    Counter.get("Romantic Monster window begin") === Infinity &&
-    Counter.get("Romantic Monster window end") === Infinity;
-  if (digitizeNeedsStarting || romanceNeedsStarting) {
-    if (digitizeNeedsStarting) {
-      print("Starting digitize counter by visiting the Haunted Kitchen!");
-    }
-    if (romanceNeedsStarting) {
-      print("Starting romance counter by visiting the Haunted Kitchen!");
-    }
-    do {
-      let run: ActionSource;
-      if (gregReady()) {
-        print(
-          "You still have gregs active, so we're going to wear your meat outfit.",
-        );
-        run = ltbRun();
-        run.constraints.preparation?.();
-        meatTargetOutfit().dress();
-      } else {
-        print("You do not have gregs active, so this is a regular free run.");
-        run = tryFindFreeRunOrBanish(freeRunConstraints()) ?? ltbRun();
-        run.constraints.preparation?.();
-        freeFightOutfit(toSpec(run), $location`The Haunted Kitchen`).dress();
-      }
-      garboAdventure(
-        $location`The Haunted Kitchen`,
-        Macro.if_(globalOptions.target, Macro.target("wanderer")).step(
-          run.macro,
-        ),
-      );
-    } while (
-      get("lastCopyableMonster") === $monster`Government agent` ||
-      lastAdventureWasWeird({ extraEncounters: ["Lights Out in the Kitchen"] })
-    );
-  }
-}
-
 function pygmyOptions(equip: Item[] = []): FreeFightOptions {
   return {
     spec: () => ({
@@ -407,11 +350,13 @@ function familiarSpec(underwater: boolean, fight: CopyTargetFight): OutfitSpec {
     };
   }
 
-  return { familiar: meatFamiliar() };
+  return {
+    familiar: underwater ? underwaterMeatFamiliar() : meatFamiliar(),
+  };
 }
 
 export function dailyFights(): void {
-  if (myInebriety() > inebrietyLimit()) return;
+  if (!sober()) return;
 
   if (copyTargetSources.some((source) => source.potential())) {
     withStash($items`Spooky Putty sheet`, () => {
@@ -427,7 +372,11 @@ export function dailyFights(): void {
             shouldDo: targetingMeat(),
             property: "_garbo_meatChain",
             macro: firstChainMacro,
-            goalMaximize: (spec: OutfitSpec) => meatTargetOutfit(spec).dress(),
+            goalMaximize: (spec: OutfitSpec, location: Location) =>
+              meatTargetOutfit(spec, {
+                location,
+                target: globalOptions.target,
+              }).dress(),
           },
           {
             shouldDo: true,
@@ -477,7 +426,10 @@ export function dailyFights(): void {
             profSpec.famequip = chip;
           }
 
-          goalMaximize({ ...profSpec, ...fightSource.spec });
+          goalMaximize(
+            { ...profSpec, ...fightSource.spec },
+            fightSource.location ?? $location.none,
+          );
 
           if (
             get("_pocketProfessorLectures") <
@@ -503,7 +455,6 @@ export function dailyFights(): void {
           const predictedNextFight = getNextCopyTargetFight();
           if (!predictedNextFight?.draggable) doSausage();
           doGhost();
-          startWandererCounter();
         }
       }
 
@@ -568,7 +519,6 @@ export function dailyFights(): void {
           doSausage();
         }
         doGhost();
-        startWandererCounter();
       }
     });
   }
@@ -579,6 +529,7 @@ type FreeFightOptions = {
   spec?: Delayed<OutfitSpec>;
   noncombat?: () => boolean;
   effects?: () => Effect[];
+  postTask?: () => void;
 
   // Tells us if this fight can reasonably be expected to do familiar
   // actions like meatifying matter, or crimbo shrub red raying.
@@ -1038,6 +989,7 @@ const freeFightSources = [
 
   new FreeFight(
     () =>
+      !timeSpinnerRefused($monster`drunk pygmy`) &&
       have($item`Time-Spinner`) &&
       !doingGregFight() &&
       $location`The Hidden Bowling Alley`.combatQueue.includes("drunk pygmy") &&
@@ -1048,10 +1000,7 @@ const freeFightSources = [
         .trySingAlong()
         .setAutoAttack();
       visitUrl(`inv_use.php?whichitem=${toInt($item`Time-Spinner`)}`);
-      runChoice(1);
-      visitUrl(
-        `choice.php?whichchoice=1196&monid=${$monster`drunk pygmy`.id}&option=1`,
-      );
+      travelToRecentFight($monster`drunk pygmy`);
     },
     true,
     pygmyOptions(),
@@ -1245,13 +1194,17 @@ const priorityFreeRunFightSources = [
     () =>
       have($familiar`Patriotic Eagle`) &&
       !have($effect`Citizen of a Zone`) &&
-      $locations`Barf Mountain, The Fun-Guy Mansion`.some((l) =>
-        canAdventure(l),
+      $locations`Barf Mountain, The Fun-Guy Mansion, The Dire Warren`.some(
+        (l) => canAdventure(l),
       ),
     (runSource: ActionSource) => {
-      const location = canAdventure($location`Barf Mountain`)
-        ? $location`Barf Mountain`
-        : $location`The Fun-Guy Mansion`;
+      const location =
+        $locations`Barf Mountain, The Fun-Guy Mansion, The Dire Warren`.find(
+          (l) => canAdventure(l),
+        );
+      if (!location) {
+        throw new Error("Somehow, we can't adventure in the Dire Warren.");
+      }
       garboAdventure(
         location,
         Macro.skill($skill`%fn, let's pledge allegiance to a Zone`).step(
@@ -1268,7 +1221,7 @@ const priorityFreeRunFightSources = [
       },
       location: canAdventure($location`Barf Mountain`)
         ? $location`Barf Mountain`
-        : $location`The Fun-Guy Mansion`,
+        : $location`The Dire Warren`,
     },
   ),
 ];
@@ -1716,8 +1669,8 @@ function targetCopiesInProgress(): boolean {
   );
 }
 
-export function freeRunFights(): void {
-  if (myInebriety() > inebrietyLimit()) return;
+function freeRunFights(): void {
+  if (!sober()) return;
   if (targetCopiesInProgress()) return;
 
   propertyManager.setChoices({
@@ -1748,7 +1701,8 @@ export function freeRunFights(): void {
 }
 
 export function freeFights(): void {
-  if (myInebriety() > inebrietyLimit()) return;
+  // These fights change familiars, so exclude Stooper's extra capacity.
+  if (!sober()) return;
   if (targetCopiesInProgress()) return;
 
   propertyManager.setChoices({
@@ -1768,7 +1722,11 @@ export function freeFights(): void {
 
   // TODO: Run grimorized free fights until all are converted
   // TODO: freeFightMood()
-  runGarboQuests([PostQuest(), FreeFightQuest, FreeGiantSandwormQuest]);
+  runGarboQuests([
+    PostQuest<unknown>(),
+    FreeFightQuest,
+    FreeGiantSandwormQuest,
+  ]);
 
   // Run any community endeavors
   runGarboQuests([PostQuest(), undelay(FreeMimicEggDonationQuest)]);
@@ -1887,7 +1845,7 @@ export function deliverThesisIfAble(): void {
   postCombatActions();
 }
 
-export function doSausage(): void {
+function doSausage(): void {
   if (!kramcoGuaranteed()) {
     return;
   }
@@ -2002,9 +1960,12 @@ const itemStealZones = [
         : 0,
     preReq: () => {
       if (!have($effect`Absinthe-Minded`)) {
-        if (!have($item`tiny bottle of absinthe`)) {
-          buy(1, $item`tiny bottle of absinthe`);
-        }
+        acquire(
+          1,
+          $item`tiny bottle of absinthe`,
+          mallPrice($item`tiny bottle of absinthe`) * 2,
+          true,
+        );
         use($item`tiny bottle of absinthe`);
       }
     },
@@ -2273,18 +2234,6 @@ function killRobortCreaturesForFree() {
   }
 }
 
-// Expected free fights, not including tentacles
-export function estimatedFreeFights(): number {
-  return (
-    sum(freeFightSources, (source: FreeFight) => {
-      const avail = source.available();
-      return typeof avail === "number" ? avail : toInt(avail);
-    }) +
-    expectedFreeFightQuestFights() +
-    expectedFreeGiantSandwormQuestFights()
-  );
-}
-
 // Possible additional free fights from Eldritch Attunement
 export function estimatedAttunementTentacles(): number {
   const totalFreeFights =
@@ -2345,3 +2294,6 @@ function runShadowRiftTurn(): void {
     adv1(bestShadowRift(), -1, ""); // We wanted to use NC forcers, but none are suitable now
   }
 }
+import { EmbezzlerFightsQuest } from "./tasks/embezzler";
+import { runGarboQuests } from "./tasks/engine";
+import { FreeMimicEggDonationQuest } from "./tasks/freeEggDonation";

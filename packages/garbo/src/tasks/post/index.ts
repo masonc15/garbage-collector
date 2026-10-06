@@ -3,6 +3,7 @@ import {
   availableChoiceOptions,
   canAdventure,
   cliExecute,
+  Environment,
   equippedItem,
   getCampground,
   inebrietyLimit,
@@ -41,6 +42,7 @@ import {
   JuneCleaver,
   Leprecondo,
   maxBy,
+  realmAvailable,
   sum,
   undelay,
   uneffect,
@@ -65,15 +67,13 @@ import { garboAverageValue } from "../../garboValue";
 import workshedTasks from "./worksheds";
 import { GarboPostTask } from "./lib";
 import { GarboTask } from "../engine";
-import {
-  autumnAtonManager,
-  hotTubAvailable,
-  lavaDogsAccessible,
-  lavaDogsComplete,
-  leprecondoTask,
-} from "../../resources";
+import { autumnAtonManager } from "../../resources/autumnaton";
+import { hotTubAvailable } from "../../resources/clanVIP";
+import { lavaDogsAccessible, lavaDogsComplete } from "../../resources/doghouse";
+import { leprecondoTask } from "../../resources/leprecondo";
+import { FarmingStrategy } from "../../farmingStrategy";
 
-const STUFF_TO_CLOSET = $items`bowling ball, funky junk key`;
+const STUFF_TO_CLOSET = $items`bowling ball, funky junk key, sand dollar`;
 const STUFF_TO_USE = $items`Armory keycard, bottle-opener keycard, SHAWARMA Initiative Keycard`;
 
 function closetStuff(): GarboPostTask {
@@ -81,6 +81,7 @@ function closetStuff(): GarboPostTask {
     name: "Closet Stuff",
     completed: () => STUFF_TO_CLOSET.every((i) => itemAmount(i) === 0),
     do: () => STUFF_TO_CLOSET.forEach((i) => putCloset(itemAmount(i), i)),
+    post: () => cliExecute("refresh inventory"),
   };
 }
 
@@ -92,27 +93,77 @@ function useStuff(): GarboPostTask {
   };
 }
 
-const BARF_PLANTS = [
-  FloristFriar.StealingMagnolia,
-  FloristFriar.AloeGuvnor,
-  FloristFriar.PitcherPlant,
-];
-function floristFriars(): GarboPostTask {
-  return {
-    name: "Florist Plants",
-    completed: () => FloristFriar.isFull($location`Barf Mountain`),
-    ready: () =>
-      get("lastAdventure") === $location`Barf Mountain` &&
-      FloristFriar.have() &&
-      BARF_PLANTS.some((flower) => flower.available($location`Barf Mountain`)),
-    do: () =>
-      BARF_PLANTS.filter((flower) =>
-        flower.available($location`Barf Mountain`),
-      ).forEach((flower) => flower.plant()),
-    available: () =>
-      FloristFriar.have() &&
-      BARF_PLANTS.some((flower) => flower.available($location`Barf Mountain`)),
-  };
+type Flower = typeof FloristFriar.AloeGuvnor; // I should export this
+const BARF_PLANTS: Record<Environment, Flower[]> = {
+  unknown: [],
+  none: [],
+  outdoor: [
+    FloristFriar.Rutabeggar,
+    FloristFriar.SeltzerWatercress,
+    FloristFriar.LettuceSpray,
+  ],
+  indoor: [
+    FloristFriar.StealingMagnolia,
+    FloristFriar.Impatiens,
+    FloristFriar.PitcherPlant,
+  ],
+  underground: [
+    FloristFriar.HornOfPlenty,
+    FloristFriar.ShuffleTruffle,
+    FloristFriar.MaxHeadshroom,
+  ],
+  underwater: [
+    FloristFriar.Crookweed,
+    FloristFriar.Snori,
+    FloristFriar.UpSeaDaisy,
+  ],
+};
+
+function floristFriars(): GarboPostTask[] {
+  const barfPlants = BARF_PLANTS[FarmingStrategy.location.environment];
+  const yachtPlants =
+    BARF_PLANTS[$location`The Sunken Party Yacht`.environment];
+  return [
+    {
+      name: "Florist Plants",
+      completed: () =>
+        FloristFriar.isFull(FarmingStrategy.location) ||
+        barfPlants.length === 0,
+      ready: () =>
+        get("lastAdventure") === FarmingStrategy.location &&
+        FloristFriar.have() &&
+        barfPlants.some((flower) => flower.available(FarmingStrategy.location)),
+      do: () =>
+        barfPlants
+          .filter((flower) => flower.available(FarmingStrategy.location))
+          .forEach((flower) => flower.plant()),
+      available: () =>
+        FloristFriar.have() &&
+        barfPlants.some((flower) => flower.available(FarmingStrategy.location)),
+    },
+    {
+      name: "Florist Plants (Secondary Location)",
+      completed: () => FloristFriar.isFull($location`The Sunken Party Yacht`),
+      ready: () =>
+        get("lastAdventure") === $location`The Sunken Party Yacht` &&
+        FloristFriar.isFull(FarmingStrategy.location) &&
+        yachtPlants.some((flower) =>
+          flower.available($location`The Sunken Party Yacht`),
+        ),
+      do: () =>
+        yachtPlants
+          .filter((flower) =>
+            flower.available($location`The Sunken Party Yacht`),
+          )
+          .forEach((flower) => flower.plant()),
+      available: () =>
+        realmAvailable("sleaze") &&
+        FloristFriar.have() &&
+        yachtPlants.some((flower) =>
+          flower.available($location`The Sunken Party Yacht`),
+        ),
+    },
+  ];
 }
 
 function fillPantsgivingFullness(): GarboPostTask {
@@ -430,7 +481,9 @@ function usePorkToilet(): GarboPostTask {
   };
 }
 
-export function PostQuest(completed?: () => boolean): Quest<GarboTask> {
+export function PostQuest<C = void>(
+  completed?: () => boolean,
+): Quest<GarboTask<C>, C> {
   return {
     name: "Postcombat",
     completed,
@@ -442,7 +495,7 @@ export function PostQuest(completed?: () => boolean): Quest<GarboTask> {
       fallbot(),
       closetStuff(),
       useStuff(),
-      floristFriars(),
+      ...floristFriars(),
       numberology(),
       juneCleaver(),
       fillPantsgivingFullness(),

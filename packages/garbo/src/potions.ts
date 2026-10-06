@@ -67,17 +67,15 @@ import {
   pillkeeperOpportunityCost,
   targetMeat,
   targetMeatDifferential,
-  turnsToNC,
   withLocation,
 } from "./lib";
-import { usingPurse } from "./outfit";
+import { usingPurse } from "./outfit/lib";
 import { estimatedGarboTurns, highMeatMonsterCount } from "./turns";
 import { globalOptions } from "./config";
-import {
-  beretEffectValue,
-  castAugustScepterBuffs,
-  safeSweatEquityCasts,
-} from "./resources";
+import { beretEffectValue } from "./resources/beret";
+import { safeSweatEquityCasts } from "./resources/bloodCubicZirconia";
+import { castAugustScepterBuffs } from "./resources/scepter";
+import { FarmingStrategy } from "./farmingStrategy";
 
 export type PotionTier = "target" | "overlap" | "barf" | "ascending";
 const banned = $items`Uncle Greenspan's Bathroom Finance Guide`;
@@ -89,7 +87,7 @@ const mutuallyExclusiveList: Effect[][] = [
   $effects`Broken Heart, Fiery Heart, Cold Hearted, Sweet Heart, Withered Heart, Lustful Heart`,
   $effects`Coldform, Hotform, Sleazeform, Spookyform, Stenchform`,
 ];
-export const mutuallyExclusive = new Map<Effect, Effect[]>();
+const mutuallyExclusive = new Map<Effect, Effect[]>();
 for (const effectGroup of mutuallyExclusiveList) {
   for (const effect of effectGroup) {
     mutuallyExclusive.set(effect, [
@@ -188,13 +186,6 @@ export interface PotionOptions {
   }>;
 }
 
-export const VALUABLE_MODIFIERS = [
-  "Meat Drop",
-  "Familiar Weight",
-  "Smithsness",
-  "Item Drop",
-] as const;
-
 const BUFFER_TURNS = 30;
 
 export class Potion {
@@ -267,6 +258,9 @@ export class Potion {
     return (
       this.effectValues?.meatDrop ??
       getModifier("Meat Drop", this.effect()) +
+        (FarmingStrategy.isUnderwater()
+          ? getModifier("Meat Drop Penalty", this.effect())
+          : 0) +
         2 * (usingPurse() ? this.smithsness() : 0)
     );
   }
@@ -274,7 +268,10 @@ export class Potion {
   familiarWeight(): number {
     return (
       this.effectValues?.famWeight ??
-      getModifier("Familiar Weight", this.effect())
+      getModifier("Familiar Weight", this.effect()) +
+        (FarmingStrategy.isUnderwater()
+          ? getModifier("Hidden Familiar Weight", this.effect())
+          : 0)
     );
   }
 
@@ -308,7 +305,7 @@ export class Potion {
       (bonusMeat / 100) *
       (baseMeat() *
         (duration - targetsApplied) *
-        (turnsToNC / (turnsToNC + 1)) +
+        FarmingStrategy.ncAdjustment() +
         (baseMeat() + targetMeatDifferential()) * targetsApplied)
     );
   }
@@ -625,7 +622,7 @@ export const rufusPotion = new Potion($item`closed-circuit pay phone`, {
   },
 });
 
-export const wishPotions = wishableEffects.map(
+const wishPotions = wishableEffects.map(
   (effect) =>
     new Potion($item`pocket wish`, {
       effect,
@@ -641,7 +638,7 @@ export const wishPotions = wishableEffects.map(
     }),
 );
 
-export const pawPotions = Array.from(validPawWishes.keys())
+const pawPotions = Array.from(validPawWishes.keys())
   .filter((effect) => numericModifier(effect, "Meat Drop") >= 100)
   .map(
     (effect) =>
@@ -676,7 +673,7 @@ export const pawPotions = Array.from(validPawWishes.keys())
       }),
   );
 
-export const farmingPotions = [
+const farmingPotions = () => [
   ...Item.all()
     .filter(
       (item) =>
@@ -689,14 +686,14 @@ export const farmingPotions = [
   ...(have($item`closed-circuit pay phone`) ? [rufusPotion] : []),
 ];
 
-export function getFarmingPotions(avoidStats = false): Potion[] {
+function getFarmingPotions(avoidStats = false): Potion[] {
   return avoidStats
-    ? farmingPotions.filter((potion) => !improvesAStat(potion.effect()))
-    : farmingPotions;
+    ? farmingPotions().filter((potion) => !improvesAStat(potion.effect()))
+    : farmingPotions();
 }
 
-export function doublingPotions(targets: number): Potion[] {
-  return farmingPotions
+function doublingPotions(targets: number): Potion[] {
+  return farmingPotions()
     .filter(
       (potion) =>
         potion.doubleDuration().gross(targets) / potion.price(true) > 0.5,
@@ -708,9 +705,7 @@ export function doublingPotions(targets: number): Potion[] {
     .map((pair) => pair.potion);
 }
 
-export function usePawWishes(
-  singleUseValuation: (potion: Potion) => number,
-): void {
+function usePawWishes(singleUseValuation: (potion: Potion) => number): void {
   while (CursedMonkeyPaw.wishes() > 0) {
     // Sort the paw potions by the profits of a single wish, then use the best one
     const madeValidWish = pawPotions
@@ -750,7 +745,7 @@ export function potionSetupCompleted(): boolean {
  * Determines if potions are worth using by comparing against meat-equilibrium. Considers using pillkeeper to double them. Accounts for non-wanderer targets. Does not account for PYEC/LTC, or running out of turns with the ascend flag.
  * @param targetsOnly Are we valuing the potions only for meat targets (noBarf)?
  */
-export function potionSetup(targetsOnly: boolean, avoidStats = false): void {
+export function potionSetup(targetsOnly: boolean): void {
   castAugustScepterBuffs();
   useBusks();
   sweatEquity();
@@ -787,7 +782,7 @@ export function potionSetup(targetsOnly: boolean, avoidStats = false): void {
     }
 
     // Only test potions which are reasonably close to being profitable using historical price.
-    const testPotions = getFarmingPotions(avoidStats).filter(
+    const testPotions = getFarmingPotions().filter(
       (potion) => potion.gross(targets) / potion.price(true) > 0.5,
     );
     const nonWishTestPotions = testPotions.filter(
@@ -840,7 +835,7 @@ export function potionSetup(targetsOnly: boolean, avoidStats = false): void {
       }
     }
 
-    variableMeatPotionsSetup(0, targets, avoidStats);
+    variableMeatPotionsSetup(0, targets);
     completedPotionSetup = true;
   });
 }
@@ -979,7 +974,9 @@ class VariableMeatPotion {
   ): number {
     const yachtzeeValue = 2000;
     const targetValue = targetMeat();
-    const barfValue = (baseMeat() * turnsToNC) / 30;
+    const barfValue = FarmingStrategy.accountForNC()
+      ? (baseMeat() * FarmingStrategy.turnsToNC()) / 30
+      : baseMeat();
 
     const totalCosts = retrievePrice(this.potion, n);
     const totalDuration = n * this.duration;
@@ -1010,15 +1007,9 @@ class VariableMeatPotion {
   }
 }
 
-export function variableMeatPotionsSetup(
-  yachtzees: number,
-  targets: number,
-  avoidStats = false,
-): void {
+function variableMeatPotionsSetup(yachtzees: number, targets: number): void {
   const potions = [
-    ...(avoidStats
-      ? []
-      : [new VariableMeatPotion($item`love song of sugary cuteness`, 20, 2)]),
+    new VariableMeatPotion($item`love song of sugary cuteness`, 20, 2),
     new VariableMeatPotion($item`pulled yellow taffy`, 50, 2),
     ...(globalOptions.prefs.candydish
       ? [new VariableMeatPotion($item`porcelain candy dish`, 500, 1)]

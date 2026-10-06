@@ -7,9 +7,9 @@ export default defineConfig({
     outDir: "dist/relay",
     rollupOptions: {
       output: {
-        entryFileNames: "garbo-nightcap/[name].js",
-        chunkFileNames: "garbo-nightcap/[name].js",
-        assetFileNames: "garbo-nightcap/[name].[ext]",
+        entryFileNames: "garbage-collector/[name].js",
+        chunkFileNames: "garbage-collector/[name].js",
+        assetFileNames: "garbage-collector/[name].[ext]",
       },
     },
     assetsInlineLimit: 100000,

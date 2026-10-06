@@ -1,10 +1,10 @@
 import { Args } from "grimoire-kolmafia";
 import {
   abort,
-  buy,
   canEquip,
   cliExecute,
   currentRound,
+  effectFact,
   equip,
   getCampground,
   getClanName,
@@ -34,9 +34,11 @@ import {
 import {
   $class,
   $classes,
+  $effect,
   $familiars,
   $item,
   $items,
+  $location,
   $monster,
   $monsters,
   $skill,
@@ -56,10 +58,14 @@ import {
   setDefaultMaximizeOptions,
   sinceKolmafiaRevision,
   unequip,
-  withProperty,
 } from "libram";
-import { stashItems, withStash, withVIPClan } from "./clan";
-import { globalOptions, isQuickGear } from "./config";
+import {
+  checkCurrentClanWhitelist,
+  stashItems,
+  withStash,
+  withVIPClan,
+} from "./clan";
+import { FarmingMethod, globalOptions, isQuickGear } from "./config";
 import { dailySetup } from "./dailies";
 import { nonOrganAdventures, runDiet } from "./diet";
 import { dailyFights, freeFights } from "./fights";
@@ -69,7 +75,6 @@ import {
   HIGHLIGHT,
   isFreeAndCopyable,
   printEventLog,
-  printLog,
   propertyManager,
   questStep,
   safeRestore,
@@ -77,23 +82,14 @@ import {
   userConfirmDialog,
   valueDrops,
 } from "./lib";
+import { printLog } from "./log";
 import { meatMood } from "./mood";
 import { checkFamiliarAbilities } from "./familiar/preflight";
 import { potionSetup } from "./potions";
 import { endSession, startSession, trackMarginalMpa } from "./session";
 import { estimatedGarboTurns } from "./turns";
 import { garboAverageValue } from "./garboValue";
-import {
-  CockroachSetup,
-  DailyFamiliarsQuest,
-  EmbezzlerFightsQuest,
-  FarmQuests,
-  FinishUpQuest,
-  PostQuest,
-  runGarboQuests,
-  runSafeGarboQuests,
-  SetupTargetCopyQuest,
-} from "./tasks";
+
 import {
   BuffExtensionQuest,
   PostBuffExtensionQuest,
@@ -101,6 +97,8 @@ import {
 import { shouldAffirmationHate } from "./combat";
 import { acquire } from "./acquire";
 import { checkCombatSafety } from "./combatSafety";
+import { FarmingStrategy } from "./farmingStrategy";
+import { runGarboFarmQuests, runGarboQuests } from "./tasks/engine";
 
 // Max price for tickets. You should rethink whether Barf is the best place if they're this expensive.
 const TICKET_MAX_PRICE = 500000;
@@ -108,8 +106,7 @@ const TICKET_MAX_PRICE = 500000;
 function ensureBarfAccess() {
   if (!(get("stenchAirportAlways") || get("_stenchAirportToday"))) {
     const ticket = $item`one-day ticket to Dinseylandfill`;
-    // TODO: Get better item acquisition logic that e.g. checks own mall store.
-    if (!have(ticket)) buy(1, ticket, TICKET_MAX_PRICE);
+    acquire(1, ticket, TICKET_MAX_PRICE, true);
     use(ticket);
   }
 }
@@ -125,7 +122,7 @@ function defaultTarget() {
 }
 
 export function main(argString = ""): void {
-  sinceKolmafiaRevision(28970); // pork elf toilet
+  sinceKolmafiaRevision(29250); // lgr limit properties
   checkGithubVersion();
 
   Args.fill(globalOptions, argString);
@@ -134,6 +131,15 @@ export function main(argString = ""): void {
   if (globalOptions.help) {
     Args.showHelp(globalOptions);
     return;
+  }
+
+  // Cowo is for professionals only
+  if (
+    globalOptions.prefs.farmingMethod === FarmingMethod.THE_CORAL_CORRAL &&
+    (effectFact($monster`sea cow`) !== $effect`Fishy` ||
+      (get("seahorseName") === "" && get("lassoTrainingCount") < 20))
+  ) {
+    globalOptions.prefs.farmingMethod = FarmingMethod.BARF_MOUNTAIN;
   }
 
   // Hit up main.php to get out of easily escapable choices
@@ -198,6 +204,10 @@ export function main(argString = ""): void {
             : null;
 
         if (parsedClanIdOrName) {
+          checkCurrentClanWhitelist(
+            parsedClanIdOrName,
+            "Return the stash items manually, then run garbo again.",
+          );
           Clan.with(parsedClanIdOrName, () => {
             for (const item of [...stashItems]) {
               const equipped = [item, ...getFoldGroup(item)].find((i) =>
@@ -317,7 +327,11 @@ export function main(argString = ""): void {
   examine($item`designer sweatpants`);
 
   startSession();
-  if (!globalOptions.nobarf && !globalOptions.simdiet) {
+  if (
+    !globalOptions.nobarf &&
+    !globalOptions.simdiet &&
+    FarmingStrategy.ensureBarfAccess
+  ) {
     ensureBarfAccess();
   }
 
@@ -567,10 +581,11 @@ export function main(argString = ""): void {
           !globalOptions.simdiet
         ) {
           if (!globalOptions.nodiet) nonOrganAdventures();
-          runSafeGarboQuests([DailyFamiliarsQuest]); // Prep robortender ahead of time in case it's a giant crab
-          withProperty("removeMalignantEffects", false, () =>
-            runGarboQuests([CockroachSetup]),
-          );
+          runGarboQuests([CockroachSetup]); // Set up piraterealm up until the final encounter for island 1
+          if (get("_lastPirateRealmIsland") === $location`Dessert Island`) {
+            runGarboQuests([CockroachFinish]); // If it's Dessert island, no need to buff beforehand
+          }
+          maximize("MP", false); // Remove our piraterealm eyepatch after we leave piraterealm
         }
         // 0. diet stuff.
         if (
@@ -613,6 +628,8 @@ export function main(argString = ""): void {
 
         // 2. do some target copy stuff
         freeFights();
+        runGarboQuests([CockroachFinish]); // Fight the giant giant crab after we've dieted for some extra buffs
+        maximize("MP", false); // Remove our piraterealm eyepatch after we leave piraterealm
         runGarboQuests([SetupTargetCopyQuest]);
         dailyFights();
 
@@ -625,7 +642,7 @@ export function main(argString = ""): void {
           if (!targetingMeat()) runGarboQuests([EmbezzlerFightsQuest]);
           try {
             trackMarginalMpa();
-            runGarboQuests([PostQuest(), ...FarmQuests]);
+            runGarboFarmQuests([PostQuest(), ...FarmQuests()]);
             trackMarginalMpa();
             runGarboQuests([FinishUpQuest]);
           } finally {
@@ -649,3 +666,9 @@ export function main(argString = ""): void {
   }
   set(completedProperty, ["garbo", argString].filter(Boolean).join(" "));
 }
+import { CockroachFinish, CockroachSetup } from "./tasks/cockroach/prep";
+import { EmbezzlerFightsQuest } from "./tasks/embezzler";
+import { FarmQuests } from "./tasks/farm";
+import { FinishUpQuest } from "./tasks/finishUp";
+import { PostQuest } from "./tasks/post";
+import { SetupTargetCopyQuest } from "./tasks/target";

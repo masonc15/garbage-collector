@@ -8,11 +8,18 @@ const state = vi.hoisted(() => ({
 }));
 vi.mock("kolmafia", () => ({
   getClanId: () => state.clan,
+  getClanName: () => `clan ${state.clan}`,
   print: (text: string) => state.output.push(text),
+  sessionStorage: {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+  },
 }));
 vi.mock("libram", () => ({
   get: () => "",
   Clan: {
+    getWhitelisted: () => [{ id: 123, name: "clan 123" }],
     join: (id: number) => {
       if (
         (id === 123 && state.failCleanup) ||

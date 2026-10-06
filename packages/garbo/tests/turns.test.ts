@@ -28,7 +28,7 @@ vi.mock("../src/config", () => ({
 vi.mock("../src/outfit/dropsgearAccessories", () => ({
   usingThumbRing: () => false,
 }));
-vi.mock("../src/target", () => ({ copyTargetCount: () => 0 }));
+vi.mock("../src/target/fights", () => ({ copyTargetCount: () => 0 }));
 vi.mock("../src/lib", () => ({
   howManySausagesCouldIEat: () => 0,
   targetingMeat: () => false,

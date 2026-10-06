@@ -1,0 +1,13 @@
+{{Location}}
+
+Unlocked by choosing the 'Trash Island' option at [[What's Behind Island 2?|What's Behind Island #2?]]
+
+==Combat Adventures==
+{{Combat|name=cockroach}}
+
+==Non-combat Adventures==
+{{choice
+|name=Your Empire of Dirt
+|image=islanded14.gif
+|choice1name=Dig through the refuse|choice1=Acquire 2-3 of 4 random tradeable items
+}}

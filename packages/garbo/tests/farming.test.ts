@@ -53,7 +53,7 @@ vi.mock("../src/familiar/lib", () => ({
 vi.mock("../src/combat", () => ({ Macro: {} }));
 vi.mock("../src/combatStrategy", () => ({ GarboStrategy: class {} }));
 vi.mock("../src/lib", () => ({ sober: () => true }));
-vi.mock("../src/outfit", () => ({ meatTargetOutfit: vi.fn() }));
+vi.mock("../src/outfit/target", () => ({ meatTargetOutfit: vi.fn() }));
 import { sandwormFamiliar } from "../src/familiar/sandwormFamiliar";
 import { lightsOutTask } from "../src/tasks/farm/lightsOut";
 

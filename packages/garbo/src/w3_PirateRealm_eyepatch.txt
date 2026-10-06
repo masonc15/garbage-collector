@@ -1,0 +1,13 @@
+{{item}}
+
+==Obtained From==
+;[[PirateRealm]]
+:''[[Port Beginning]]''
+
+==History==
+* Prior to September 6, 2026, the eyepatch would only limit base character stats. The buffed stat cap was added to allow [[book of facts]] owners in class/path combinations which received [[Gummiheart]], [[Gummibrain]] or [[Gummiskin]] from defeating one of the PirateRealm monsters to keep adventuring in PirateRealm without having to remove the effect each combat.
+
+==See Also==
+*[[Base Stat Limiters]]
+
+{{Collection|10189}}

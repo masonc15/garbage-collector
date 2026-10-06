@@ -66,10 +66,14 @@ import {
   Witchess,
 } from "libram";
 import { acquire } from "../acquire";
-import { withStash } from "../clan";
+import {
+  checkCurrentClanWhitelist,
+  getWhitelistedClans,
+  withStash,
+} from "../clan";
 import { globalOptions } from "../config";
-import { copyTargetCount } from "../target";
-import { meatFamiliar } from "../familiar";
+import { copyTargetCount } from "../target/fights";
+import { meatFamiliar } from "../familiar/meatFamiliar";
 import { estimatedAttunementTentacles } from "../fights";
 import { baseMeat, HIGHLIGHT, songboomMeat, targetMeat } from "../lib";
 import { garboValue } from "../garboValue";
@@ -80,12 +84,12 @@ import {
 } from "../turns";
 import { GarboTask } from "./engine";
 import { AcquireItem, Quest } from "grimoire-kolmafia";
+import { checkAndCorrectLatteMalformation } from "../resources/latte";
 import {
   attemptCompletingBarfQuest,
-  checkAndCorrectLatteMalformation,
   checkBarfQuest,
   checkVolcanoQuest,
-} from "../resources";
+} from "../resources/realm";
 import { Macro } from "../combat";
 import { GarboStrategy } from "../combatStrategy";
 import { luckyGoldRingDropValues } from "../outfit/dropsgearAccessories";
@@ -283,7 +287,7 @@ function nepQuest(): void {
   }
 }
 
-export function configureSnojo(): void {
+function configureSnojo(): void {
   if (snojoConfigured) return;
 
   // if we're ascending, pick whichever consumable has the best price
@@ -384,7 +388,7 @@ const DailyTasks: GarboTask[] = [
   {
     name: "Check Florist",
     ready: () => get("ownsFloristFriar"),
-    completed: floristAvailable,
+    completed: () => floristAvailable(),
     after: ["Daily/Unlock Woods"],
     do: () => {
       visitUrl("woods.php"); // Without visiting woods, other visitUrls will not register woods as being unlocked.
@@ -641,11 +645,15 @@ const DailyTasks: GarboTask[] = [
       have($item`Clan VIP Lounge key`) &&
       getClanLounge()["Clan Carnival Game"] !== undefined &&
       isOnline("OnlyFax") &&
-      Clan.getWhitelisted().find(
+      getWhitelistedClans().some(
         (c) => c.name === "Bonus Adventures from Hell",
-      ) !== undefined,
+      ),
     completed: () => get("_clanFortuneConsultUses") >= 3,
     do: (): void => {
+      checkCurrentClanWhitelist(
+        "Bonus Adventures from Hell",
+        "To stop garbo using the fortune teller, remove your 'Bonus Adventures from Hell' whitelist.",
+      );
       Clan.with("Bonus Adventures from Hell", () =>
         cliExecute(`fortune ${getPlayerId("OnlyFax")}`),
       );

@@ -7,8 +7,9 @@ export function recoverCleaverReward(wasBeatenUp: boolean): void {
     get("_lastCombatLost") ||
     !["Poetic Justice", "Lost and Found"].includes(get("lastEncounter")) ||
     !have($effect`Beaten Up`)
-  )
+  ) {
     return;
+  }
 
   uneffect($effect`Beaten Up`);
   if (have($effect`Beaten Up`)) {

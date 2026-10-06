@@ -13,11 +13,38 @@ version=$(node -p 'require("./packages/garbo/package.json").version')
 git diff --quiet HEAD -- packages yarn.lock || { echo 'Commit source changes before deployment.' >&2; exit 1; }
 export GITHUB_SHA=$(git rev-parse HEAD)
 export GITHUB_REF_NAME="nightcap-$version"
-node .yarn/releases/yarn-3.6.4.cjs workspace garbo test
+yarn() { node .yarn/releases/yarn-3.6.4.cjs "$@"; }
+yarn install --immutable >/dev/null
 # Stale outputs from older file names would otherwise ship in the release.
 rm -rf dist packages/garbo/dist packages/garbo-choice/dist packages/garbo-relay/dist
-node .yarn/releases/yarn-3.6.4.cjs build
-node .yarn/releases/yarn-3.6.4.cjs workspace garbo check
+yarn build
+# The build keeps upstream's file names so upstream merges never touch the
+# build configs. Rename here, so the fork installs beside upstream's garbo
+# instead of over it, and refuse to ship any output this list doesn't know.
+mkdir -p dist/scripts/garbo-nightcap
+mv dist/scripts/garbage-collector/garbo.js dist/scripts/garbo-nightcap/garbo-nightcap.js
+mv dist/scripts/garbage-collector/garbo-price.js dist/scripts/garbo-nightcap/garbo-nightcap-price.js
+mv dist/scripts/garbage-collector/garbo_choice.js dist/scripts/garbo-nightcap/garbo-nightcap-choice.js
+rmdir dist/scripts/garbage-collector
+mv dist/relay/relay_garbo.js dist/relay/relay_garbo_nightcap.js
+mv dist/relay/garbage-collector dist/relay/garbo-nightcap
+mv dist/data/garbo_item_lists.json dist/data/garbo_nightcap_item_lists.json
+mv dist/data/garbo_settings.json dist/data/garbo_nightcap_settings.json
+expected='data/garbo_nightcap_item_lists.json
+data/garbo_nightcap_settings.json
+relay/garbo-nightcap/index.css
+relay/garbo-nightcap/index.js
+relay/relay_garbo_nightcap.js
+scripts/garbo-nightcap/garbo-nightcap-choice.js
+scripts/garbo-nightcap/garbo-nightcap-price.js
+scripts/garbo-nightcap/garbo-nightcap.js'
+actual=$(cd dist && find . -type f | sed 's|^\./||' | LC_ALL=C sort)
+[ "$actual" = "$expected" ] || {
+    printf 'Unexpected build outputs; update the rename list in %s:\n%s\n' "$0" "$actual" >&2
+    exit 1
+}
+yarn workspace garbo test
+yarn workspace garbo check
 python3 - "$version" "$GITHUB_SHA" <<'PY'
 import hashlib, json, pathlib, sys
 root = pathlib.Path('dist')

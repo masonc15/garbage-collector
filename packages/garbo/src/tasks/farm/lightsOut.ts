@@ -3,7 +3,7 @@ import { $item, $location, $monster, get } from "libram";
 import { Macro } from "../../combat";
 import { GarboStrategy } from "../../combatStrategy";
 import { sober } from "../../lib";
-import { meatTargetOutfit } from "../../outfit";
+import { meatTargetOutfit } from "../../outfit/target";
 import type { GarboTask } from "../engine";
 
 const isSteve = () =>
@@ -21,7 +21,10 @@ export const lightsOutTask: GarboTask = {
   completed: () => totalTurnsPlayed() === get("lastLightsOutTurn"),
   do: () => get("nextSpookyravenStephenRoom") as Location,
   outfit: () =>
-    meatTargetOutfit(sober() ? {} : { offhand: $item`Drunkula's wineglass` }),
+    meatTargetOutfit(
+      sober() ? {} : { offhand: $item`Drunkula's wineglass` },
+      get("nextSpookyravenStephenRoom") ?? $location.none,
+    ),
   spendsTurn: isSteve,
   combat: new GarboStrategy(() =>
     Macro.if_($monster`Stephen Spookyraven`, Macro.basicCombat()).abortWithMsg(

@@ -5,7 +5,13 @@ const state = vi.hoisted(() => ({
   beaten: false,
   monster: "BRICKO airship",
   setupStarted: false,
-  options: { version: false, help: false, simdiet: false, returnstash: false },
+  options: {
+    version: false,
+    help: false,
+    simdiet: false,
+    returnstash: false,
+    prefs: { farmingMethod: "barf" },
+  },
 }));
 
 // Stop at the first setup command: nothing past this boundary is needed to
@@ -33,7 +39,10 @@ vi.mock("libram", () => ({
 vi.mock("grimoire-kolmafia", () => ({
   Args: { fill: () => {}, showHelp: () => {} },
 }));
-vi.mock("../src/config", () => ({ globalOptions: state.options }));
+vi.mock("../src/config", () => ({
+  globalOptions: state.options,
+  FarmingMethod: { BARF_MOUNTAIN: "barf", THE_CORAL_CORRAL: "coral" },
+}));
 vi.mock("../src/lib", () => ({ checkGithubVersion: () => {} }));
 vi.mock("../src/familiar/preflight", () => ({
   checkFamiliarAbilities: () => {},
@@ -47,7 +56,15 @@ vi.mock("../src/potions", () => ({}));
 vi.mock("../src/session", () => ({}));
 vi.mock("../src/turns", () => ({}));
 vi.mock("../src/garboValue", () => ({}));
-vi.mock("../src/tasks", () => ({}));
+vi.mock("../src/farmingStrategy", () => ({}));
+vi.mock("../src/log", () => ({}));
+vi.mock("../src/tasks/cockroach/prep", () => ({}));
+vi.mock("../src/tasks/embezzler", () => ({}));
+vi.mock("../src/tasks/engine", () => ({}));
+vi.mock("../src/tasks/farm", () => ({}));
+vi.mock("../src/tasks/finishUp", () => ({}));
+vi.mock("../src/tasks/post", () => ({}));
+vi.mock("../src/tasks/target", () => ({}));
 vi.mock("../src/tasks/buffExtension", () => ({}));
 vi.mock("../src/combat", () => ({}));
 vi.mock("../src/acquire", () => ({}));
