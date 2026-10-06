@@ -85,9 +85,9 @@ function sample(turn: number, remaining: number, meat = turn * 3000) {
 }
 function report() {
   endSession();
-  const line = state.output.find((s) => s.startsWith("GARBO_LATE_RUN "));
-  expect(line, "durable structured measurement in session log").toBeDefined();
-  return JSON.parse(line!.slice("GARBO_LATE_RUN ".length));
+  const [text] = [...state.files.values()];
+  expect(text, "late-run measurement saved in the run record").toBeDefined();
+  return JSON.parse(text).lateRun;
 }
 test("elapsed-turn fallback opens items even when remaining estimate stays high", () => {
   sample(0, 500);
@@ -204,7 +204,45 @@ test("each finished run saves one structured record to data/garbo-runs", () => {
     marginal: { status: "measured", raw: 3000, total: 3000 },
     lateRun: { status: "measured", turns: 50, netMpa: 3000 },
   });
-  expect(state.output).toContain(`Saved this run's record to data/${path}.`);
+  expect(state.output).toContain(`Saved run record: data/${path}`);
+});
+test("the gCLI summary stays short and keeps machine detail in the record", () => {
+  sample(0, 15);
+  state.items = { rare: 1 };
+  sample(15, 0);
+  endSession();
+  const out = state.output.join("\n");
+  expect(out).not.toContain("GARBO_LATE_RUN");
+  expect(out).not.toContain("{");
+  expect(out).toContain(
+    "Late-run MPA (last 15 turns): 3000 (3666.67 w/ outliers)",
+  );
+});
+test("extreme items skip worthless gains and list the worst losses first", () => {
+  state.items = { potion: 3, drop: 1 };
+  startSession();
+  sample(0, 10);
+  state.items = { drop: 4, junk: 5, potion: 1 };
+  sample(10, 0);
+  endSession();
+  const extremes = state.output.slice(
+    state.output.indexOf("Extreme Items:") + 1,
+    state.output.findIndex((s) => s.startsWith("This run of garbo")),
+  );
+  expect(extremes).toEqual([
+    "3 drop worth 300 total",
+    "-2 potion worth -400 total",
+  ]);
+});
+test("no outliers prints no empty Outliers header", () => {
+  sample(0, 500);
+  sample(101, 500);
+  state.items = { drop: 10 };
+  sample(120, 75);
+  sample(170, 25);
+  sample(195, 0);
+  endSession();
+  expect(state.output).not.toContain("Outliers:");
 });
 test("a run without a sampling window still saves its record", () => {
   endSession();

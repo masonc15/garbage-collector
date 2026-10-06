@@ -118,6 +118,10 @@ function recordMarginalSnapshot(
 
 const outlierItemList = $items`Extrovermectin™, Volcoino, Poké-Gro fertilizer`;
 
+/**
+ * Measure the last ~50 farming turns. The full measurement goes into the run
+ * record; the gCLI gets one summary line.
+ */
 function printLateRunSession(): Record<string, unknown> {
   const start = lateSnapshots[0];
   const end = lateEnd;
@@ -134,9 +138,7 @@ function printLateRunSession(): Record<string, unknown> {
       "late farming interval; includes intervening side trips and free fights; excludes subsequent cleanup",
   };
   if (!start || !end || turns <= 0) {
-    const report = { ...identity, status: "insufficient-data", turns: 0 };
-    print(`GARBO_LATE_RUN ${JSON.stringify(report)}`);
-    return report;
+    return { ...identity, status: "insufficient-data", turns: 0 };
   }
   const { meat, items, itemDetails } = end.diff(start).value(garboValue);
   const details = itemDetails.map((d) => ({
@@ -173,10 +175,13 @@ function printLateRunSession(): Record<string, unknown> {
       "garboValue at report time, not realized sales; net Meat includes observed spending; inventory depletion valued, not charged twice; excludes pre-window setup and unobserved costs; no modeled familiar or outfit bonuses added",
     items: details,
   };
-  print(`GARBO_LATE_RUN ${JSON.stringify(report)}`);
+  const mpa = (n: number) => formatNumber(Math.round(n * 100) / 100);
+  const withOutliers = outlierValue
+    ? ` (${mpa(report.netMpa)} w/ outliers)`
+    : "";
   print(
-    `Late-run net MPA (${turns} paid turns): ${report.netMpa.toFixed(2)}; excluding positive outliers: ${report.adjustedMpa.toFixed(2)}. Item values are estimates; inspect GARBO_LATE_RUN before changing valueOfAdventure.`,
-    HIGHLIGHT,
+    `Late-run MPA (last ${formatNumber(turns)} turns): ${mpa(report.adjustedMpa)}${withOutliers}`,
+    report.status === "measured" ? HIGHLIGHT : "red",
   );
   return report;
 }
@@ -235,7 +240,7 @@ function printMarginalSession(): MarginalRecord {
         excludeValue: { item: itemExtraEnd - itemExtraStart },
       });
 
-      print(`Outliers:`, HIGHLIGHT);
+      if (itemMpa.outlierItems.length) print(`Outliers:`, HIGHLIGHT);
       for (const detail of itemMpa.outlierItems) {
         print(
           `${detail.quantity} ${detail.item} worth ${detail.value.toFixed(
@@ -304,7 +309,7 @@ function printMarginalSession(): MarginalRecord {
     }
   } else {
     print(
-      "Marginal MPA unavailable: no positive-width meat sampling window. See late-run measurement.",
+      "Marginal MPA unavailable: garbo did not farm long enough to sample it.",
       "red",
     );
     return { status: "unavailable" };
@@ -339,9 +344,9 @@ function saveRunRecord(details: Record<string, unknown>): void {
   };
   const path = `garbo-runs/${myName().toLowerCase()}-${stamp}.json`;
   if (bufferToFile(JSON.stringify(record), path)) {
-    print(`Saved this run's record to data/${path}.`);
+    print(`Saved run record: data/${path}`);
   } else {
-    print(`Could not save this run's record to data/${path}.`, "red");
+    print(`Could not save run record: data/${path}`, "red");
   }
 }
 
@@ -389,14 +394,18 @@ export function endSession(printLog = true, args = ""): void {
   const totalTurns = turns + getGarboDaily("garboResultsTurns");
 
   if (printLog) {
-    // list the top 3 gaining and top 3 losing items
-    const losers = itemDetails.sort((a, b) => a.value - b.value).slice(0, 3);
-    const winners = itemDetails.reverse().slice(0, 3);
-    print(`Extreme Items:`, HIGHLIGHT);
+    // list the top 3 gaining and top 3 losing items; worthless items are neither
+    itemDetails.sort((a, b) => b.value - a.value);
+    const winners = itemDetails.filter((d) => d.value >= 1).slice(0, 3);
+    const losers = itemDetails
+      .filter((d) => d.value <= -1)
+      .slice(-3)
+      .reverse();
+    if (winners.length || losers.length) print(`Extreme Items:`, HIGHLIGHT);
     for (const detail of [...winners, ...losers]) {
       print(
-        `${detail.quantity} ${detail.item} worth ${detail.value.toFixed(
-          0,
+        `${formatNumber(detail.quantity)} ${detail.item} worth ${formatNumber(
+          Math.round(detail.value),
         )} total`,
         HIGHLIGHT,
       );
