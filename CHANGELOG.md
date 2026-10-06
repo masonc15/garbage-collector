@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.1-nightcap.11 - 2026-10-05
+
+- Bring in 55 upstream commits through loathers/garbage-collector@81c4d30d,
+  including the switch from esbuild to rollup and libram 0.11.36.
+- Build under upstream's file names and rename to the nightcap names in
+  `tools/deploy-nightcap.sh`, so upstream build changes merge cleanly. The
+  release ships the same files as before.
+- Add `tools/sync-upstream.sh`, which merges upstream every hour on nuada and
+  releases the result when tests and the build pass.
+- No gameplay change beyond upstream's.
+
 ## 1.0.1-nightcap.10 - 2026-10-05
 
 - Tidy the end-of-run summary. The `GARBO_LATE_RUN` JSON line is gone; the

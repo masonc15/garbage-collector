@@ -96,6 +96,22 @@ status (`measured`, `insufficient-turns` or `unavailable`), the late-run report
 above, and every item gained or used with its `garboValue`. Nothing reads the
 file during play; it is there for later analysis.
 
+### Staying current with upstream
+
+Every hour, a timer on nuada runs `tools/sync-upstream.sh` in a clone used only
+for that. When `loathers/main` has commits this fork lacks, it merges them into
+`fix/low-resource-farming`. If the tests, build and typecheck pass, it commits
+the merge as the next nightcap release, pushes it, and publishes it to every
+account. It also keeps the fork's `main` the same as upstream's. A merge
+conflict or a failed build is emailed once and nothing is published; resolve it
+here, push, and the next hourly run releases it.
+
+The build keeps upstream's file names, so upstream can change its build
+configs without conflicting with this fork. `tools/deploy-nightcap.sh` renames
+the outputs to their nightcap names afterwards, and stops if the build produces
+a file it doesn't know about. It also refuses to publish from a checkout that
+lacks commits the sync has pushed, so pull before you deploy.
+
 ### Set your VIP clan
 
 If you have a VIP Lounge Key, Garbo will try to make use of any VIP furniture to augment its farming. To set your VIP clan, copy the name of your intended VIP clan and run the following code (using BAFH as an example):
