@@ -32,6 +32,7 @@ mv dist/data/garbo_item_lists.json dist/data/garbo_nightcap_item_lists.json
 mv dist/data/garbo_settings.json dist/data/garbo_nightcap_settings.json
 expected='data/garbo_nightcap_item_lists.json
 data/garbo_nightcap_settings.json
+dependencies.txt
 relay/garbo-nightcap/index.css
 relay/garbo-nightcap/index.js
 relay/relay_garbo_nightcap.js
