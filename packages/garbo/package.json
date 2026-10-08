@@ -1,6 +1,6 @@
 {
   "name": "garbo",
-  "version": "1.0.1-nightcap.12",
+  "version": "1.0.1-nightcap.13",
   "description": "Script for farming meat (and garbage) in 2004 web RPG Kingdom of Loathing.",
   "repository": "https://github.com/loathers/garbage-collector.git",
   "main": "dist/scripts/garbage-collector/garbo.js",
