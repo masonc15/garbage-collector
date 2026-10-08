@@ -9,10 +9,17 @@ const state = vi.hoisted(() => ({
   leaveOpen: false,
   wrongType: false,
   phoneCalls: 0,
+  forced: false,
+  visits: [] as string[],
 }));
 vi.mock("kolmafia", () => ({
   handlingChoice: () => state.handlingChoice,
   lastChoice: () => state.choice,
+  visitUrl: (url: string) => {
+    state.visits.push(url);
+    if (!state.forced) state.handlingChoice = false;
+    return "";
+  },
 }));
 vi.mock("libram", () => ({
   get: (key: string) => (key === "questRufus" ? state.quest : state.type),
@@ -47,6 +54,8 @@ beforeEach(() => {
     leaveOpen: false,
     wrongType: false,
     phoneCalls: 0,
+    forced: false,
+    visits: [],
   });
 });
 
@@ -88,4 +97,27 @@ test("an already open choice is never submitted as a Rufus option", () => {
 test("a mismatched quest type cannot masquerade as success", () => {
   state.wrongType = true;
   expect(() => chooseRufusQuest(3)).toThrow(/Rufus.*failed/i);
+});
+
+test("the burning leaves pile left open by a burn is walked away from", () => {
+  state.handlingChoice = true;
+  state.choice = 1510;
+  expect(chooseRufusQuest(3)).toBe(true);
+  expect(state.visits).toEqual(["main.php"]);
+  expect(state.phoneCalls).toBe(1);
+});
+
+test("a leaves pile that won't let go still stops setup", () => {
+  state.handlingChoice = true;
+  state.choice = 1510;
+  state.forced = true;
+  expect(() => chooseRufusQuest(3)).toThrow(/choice 1510/);
+  expect(state.phoneCalls).toBe(0);
+});
+
+test("other open choices are not walked away from", () => {
+  state.handlingChoice = true;
+  state.choice = 1501;
+  expect(() => chooseRufusQuest(3)).toThrow(/choice 1501/);
+  expect(state.visits).toEqual([]);
 });

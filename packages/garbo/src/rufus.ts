@@ -1,7 +1,15 @@
-import { handlingChoice, lastChoice } from "kolmafia";
+import { handlingChoice, lastChoice, visitUrl } from "kolmafia";
 import { ClosedCircuitPayphone, get } from "libram";
 
+// The Burning Leaves pile. KoLmafia's `leaves` command burns from it, and the
+// result page offers the pile again, so mafia reports the choice as open after
+// every burn. Walking away is safe.
+const BURNING_LEAVES_CHOICE = 1510;
+
 function checkRufusChoice(): void {
+  if (handlingChoice() && lastChoice() === BURNING_LEAVES_CHOICE) {
+    visitUrl("main.php");
+  }
   if (handlingChoice()) {
     throw new Error(
       `Rufus quest selection is blocked by choice ${lastChoice()}. Finish that choice (or hang up Rufus's phone) before rerunning. Stopping before further setup.`,
