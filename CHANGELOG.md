@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1-nightcap.14 - 2026-10-08
+
+- Bring in 1 upstream commit through loathers/garbage-collector@b7b55ed6.
+- No Nightcap change.
+
 ## 1.0.1-nightcap.13 - 2026-10-08
 
 - Bring in 1 upstream commit through loathers/garbage-collector@1c77410b.
