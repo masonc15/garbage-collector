@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1-nightcap.17 - 2026-10-09
+
+- Bring in 2 upstream commits through loathers/garbage-collector@d6149f9f.
+- No Nightcap change.
+
 ## 1.0.1-nightcap.16 - 2026-10-09
 
 - Walk away from the Burning Leaves pile (choice 1510) before choosing a Rufus
