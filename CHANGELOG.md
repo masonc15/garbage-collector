@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.1-nightcap.16 - 2026-10-09
+
+- Walk away from the Burning Leaves pile (choice 1510) before choosing a Rufus
+  quest. KoLmafia's `leaves` command leaves that choice open after each burn,
+  so the open-choice guard from nightcap.7 stopped noctys's `garbo ascend`
+  right after the daily lit leaf lasso and day shortener, before any farming.
+  Any other open choice still stops setup.
+
 ## 1.0.1-nightcap.15 - 2026-10-08
 
 - Bring in 1 upstream commit through loathers/garbage-collector@ae51ca9b.
