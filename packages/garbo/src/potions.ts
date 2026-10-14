@@ -7,6 +7,7 @@ import {
   cliExecute,
   Effect,
   effectModifier,
+  effectsModifier,
   equip,
   getMonsters,
   haveEffect,
@@ -26,6 +27,7 @@ import {
   print,
   retrievePrice,
   setLocation,
+  Skill,
   toSkill,
   use,
 } from "kolmafia";
@@ -42,6 +44,7 @@ import {
   ClosedCircuitPayphone,
   CursedMonkeyPaw,
   get,
+  getAcquirePrice,
   getActiveEffects,
   getActiveSongs,
   getModifier,
@@ -59,20 +62,17 @@ import { acquire } from "./acquire";
 import { chooseRufusQuest } from "./rufus";
 import {
   aprilFoolsRufus,
-  baseMeat,
   bestShadowRift,
   HIGHLIGHT,
   improvesAStat,
   marginalFamWeightValue,
   pillkeeperOpportunityCost,
   targetMeat,
-  targetMeatDifferential,
   withLocation,
 } from "./lib";
 import { usingPurse } from "./outfit/lib";
 import { estimatedGarboTurns, highMeatMonsterCount } from "./turns";
 import { globalOptions } from "./config";
-import { beretEffectValue } from "./resources/beret";
 import { safeSweatEquityCasts } from "./resources/bloodCubicZirconia";
 import { castAugustScepterBuffs } from "./resources/scepter";
 import { FarmingStrategy } from "./farmingStrategy";
@@ -169,7 +169,7 @@ export interface PotionOptions {
   canDouble?: boolean;
   effect?: Effect;
   duration?: number;
-  price?: (historical: boolean) => number;
+  price?: () => number;
   use?: (quantity: number) => boolean;
   acquire?: (
     qty: number,
@@ -194,7 +194,7 @@ export class Potion {
   canDouble: boolean;
   overrideEffect?: Effect;
   overrideDuration?: number;
-  priceOverride?: (historical: boolean) => number;
+  priceOverride?: () => number;
   useOverride?: (quantity: number) => boolean;
   acquire: (
     qty: number,
@@ -303,10 +303,10 @@ export class Potion {
 
     return (
       (bonusMeat / 100) *
-      (baseMeat() *
+      (FarmingStrategy.baseMeat() *
         (duration - targetsApplied) *
         FarmingStrategy.ncAdjustment() +
-        (baseMeat() + targetMeatDifferential()) * targetsApplied)
+        targetMeat() * targetsApplied)
     );
   }
 
@@ -314,39 +314,33 @@ export class Potion {
     return new Potion(item).gross(targets);
   }
 
-  price(historical: boolean): number {
-    if (this.priceOverride) return this.priceOverride(historical);
+  price(): number {
+    if (this.priceOverride) return this.priceOverride();
     // If asked for historical, and age < 14 days, use historical.
     // If potion is not tradeable, use retrievePrice instead
     return this.potion.tradeable
-      ? historical && historicalAge(this.potion) < 14
-        ? historicalPrice(this.potion)
-        : mallPrice(this.potion)
+      ? getAcquirePrice(this.potion)
       : retrieveUntradeablePrice(this.potion);
   }
 
-  net(targets: number, historical = false): number {
-    return this.gross(targets) - this.price(historical);
+  net(targets: number): number {
+    return this.gross(targets) - this.price();
   }
 
-  static net(item: Item, targets: number, historical = false): number {
-    return new Potion(item).net(targets, historical);
+  static net(item: Item, targets: number): number {
+    return new Potion(item).net(targets);
   }
 
-  doublingValue(targets: number, historical = false): number {
+  doublingValue(targets: number): number {
     return Math.min(
-      Math.max(this.doubleDuration().net(targets, historical), 0) -
-        Math.max(this.net(targets, historical), 0),
-      this.price(true),
+      Math.max(this.doubleDuration().net(targets), 0) -
+        Math.max(this.net(targets), 0),
+      this.price(),
     );
   }
 
-  static doublingValue(
-    item: Item,
-    targets: number,
-    historical = false,
-  ): number {
-    return new Potion(item).doublingValue(targets, historical);
+  static doublingValue(item: Item, targets: number): number {
+    return new Potion(item).doublingValue(targets);
   }
 
   /**
@@ -499,7 +493,7 @@ function useAsValuable(
   targetsOnly: boolean,
 ): number {
   const value = potion.value(targets);
-  const price = potion.price(false);
+  const price = potion.price();
   const amountsAcquired = value.map((value) =>
     (!targetsOnly || value.name === "target") && value.value - price > 0
       ? potion.acquire(
@@ -537,7 +531,7 @@ export const rufusPotion = new Potion($item`closed-circuit pay phone`, {
   canDouble: false,
   effect: $effect`Shadow Waters`,
   duration: 30,
-  price: (historical: boolean) => {
+  price: () => {
     if (!have($item`closed-circuit pay phone`)) return Infinity;
 
     const target = ClosedCircuitPayphone.rufusTarget();
@@ -571,12 +565,7 @@ export const rufusPotion = new Potion($item`closed-circuit pay phone`, {
 
     // We consider the average price of the shadow items to not get gated behind an expensive one
     const shadowItems = $items`shadow brick, shadow ice, shadow sinew, shadow glass, shadow stick, shadow skin, shadow flame, shadow fluid, shadow sausage, shadow bread, shadow venom, shadow nectar`;
-    const averagePrice =
-      sum(shadowItems, (it) =>
-        historical && historicalAge(it) < 14
-          ? historicalPrice(it)
-          : mallPrice(it),
-      ) / shadowItems.length;
+    const averagePrice = sum(shadowItems, getAcquirePrice) / shadowItems.length;
 
     return 3 * averagePrice;
   },
@@ -635,6 +624,7 @@ const wishPotions = wishableEffects.map(
         }
         return true;
       },
+      price: () => 50_000,
     }),
 );
 
@@ -695,8 +685,7 @@ function getFarmingPotions(avoidStats = false): Potion[] {
 function doublingPotions(targets: number): Potion[] {
   return farmingPotions()
     .filter(
-      (potion) =>
-        potion.doubleDuration().gross(targets) / potion.price(true) > 0.5,
+      (potion) => potion.doubleDuration().gross(targets) / potion.price() > 0.5,
     )
     .map((potion) => {
       return { potion: potion, value: potion.doublingValue(targets) };
@@ -724,7 +713,7 @@ function useBusks() {
     return;
   }
   for (let i = get("_beretBuskingUses"); i < 5; i++) {
-    PrismaticBeret.buskFor(beretEffectValue, {});
+    PrismaticBeret.buskFor(effectValueWithOpportunityCost, {});
   }
 }
 
@@ -783,7 +772,7 @@ export function potionSetup(targetsOnly: boolean): void {
 
     // Only test potions which are reasonably close to being profitable using historical price.
     const testPotions = getFarmingPotions().filter(
-      (potion) => potion.gross(targets) / potion.price(true) > 0.5,
+      (potion) => potion.gross(targets) / potion.price() > 0.5,
     );
     const nonWishTestPotions = testPotions.filter(
       (potion) => potion.potion !== $item`pocket wish`,
@@ -853,7 +842,8 @@ export function bathroomFinance(targets: number): void {
   const tourists = 100 - targets;
 
   // Average meat % for tourists is sum of arithmetic series, 2 * sum(targets + 1 -> 100)
-  const averageTouristGross = (baseMeat() * 2 * (100 + targets + 1)) / 2 / 100;
+  const averageTouristGross =
+    (FarmingStrategy.baseMeat() * 2 * (100 + targets + 1)) / 2 / 100;
   const touristGross = averageTouristGross * tourists;
 
   const greenspan = $item`Uncle Greenspan's Bathroom Finance Guide`;
@@ -975,8 +965,8 @@ class VariableMeatPotion {
     const yachtzeeValue = 2000;
     const targetValue = targetMeat();
     const barfValue = FarmingStrategy.accountForNC()
-      ? (baseMeat() * FarmingStrategy.turnsToNC()) / 30
-      : baseMeat();
+      ? (FarmingStrategy.baseMeat() * FarmingStrategy.turnsToNC()) / 30
+      : FarmingStrategy.baseMeat();
 
     const totalCosts = retrievePrice(this.potion, n);
     const totalDuration = n * this.duration;
@@ -1037,6 +1027,27 @@ function variableMeatPotionsSetup(yachtzees: number, targets: number): void {
   }
 }
 
+export function effectValueWithOpportunityCost(
+  effect: Effect,
+  duration: number,
+) {
+  const value = effectValue(effect, duration);
+
+  if (value <= 0) return value;
+  const potionPrices = Item.all()
+    .filter(
+      (i) =>
+        i.potion &&
+        i.tradeable &&
+        effectsModifier(i, "Effect").includes(effect),
+    )
+    .map(
+      (i) =>
+        (getAcquirePrice(i) * duration) / getModifier("Effect Duration", i),
+    );
+  return Math.min(value, ...potionPrices);
+}
+
 /**
  * WARNING: Expensive
  */
@@ -1057,6 +1068,9 @@ export function effectValue(
   const durationOverride = maxTurnsWanted
     ? clamp(maxTurnsWanted - haveEffect(effect), 0, duration)
     : undefined;
+
+  const skill = toSkill(effect);
+  if (skill !== Skill.none && have(skill)) return 0;
 
   return new Potion($item.none, { duration, effect }).gross(
     targets,

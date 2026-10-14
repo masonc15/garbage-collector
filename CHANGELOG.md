@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.1-nightcap.18 - 2026-10-14
+
+- Bring in all 13 upstream commits through loathers/garbage-collector@29a6e762,
+  including diet planning updates, farming strategy availability checks,
+  familiar and outfit fixes, yam battery support, and libram 0.11.37.
+- Preserve Nightcap's shared combat safety check in upstream's new recovery
+  module, resolving the conflict that blocked hourly upstream synchronization.
+
 ## 1.0.1-nightcap.17 - 2026-10-09
 
 - Bring in 2 upstream commits through loathers/garbage-collector@d6149f9f.

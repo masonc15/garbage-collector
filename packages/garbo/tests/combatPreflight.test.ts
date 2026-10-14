@@ -56,7 +56,9 @@ vi.mock("../src/potions", () => ({}));
 vi.mock("../src/session", () => ({}));
 vi.mock("../src/turns", () => ({}));
 vi.mock("../src/garboValue", () => ({}));
-vi.mock("../src/farmingStrategy", () => ({}));
+vi.mock("../src/farmingStrategy", () => ({
+  FarmingStrategy: { available: true },
+}));
 vi.mock("../src/log", () => ({}));
 vi.mock("../src/tasks/cockroach/prep", () => ({}));
 vi.mock("../src/tasks/embezzler", () => ({}));

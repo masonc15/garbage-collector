@@ -1,6 +1,6 @@
 {
   "name": "garbo",
-  "version": "1.0.1-nightcap.17",
+  "version": "1.0.1-nightcap.18",
   "description": "Script for farming meat (and garbage) in 2004 web RPG Kingdom of Loathing.",
   "repository": "https://github.com/loathers/garbage-collector.git",
   "main": "dist/scripts/garbage-collector/garbo.js",
@@ -31,7 +31,7 @@
     "garbo-lib": "workspace:*",
     "grimoire-kolmafia": "^0.3.35",
     "kolmafia": "^5.29250.0",
-    "libram": "^0.11.36"
+    "libram": "^0.11.37"
   },
   "devDependencies": {
     "@babel/cli": "^7.29.7",
