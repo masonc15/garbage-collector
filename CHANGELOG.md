@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1-nightcap.24 - 2026-10-28
+
+- Bring in 2 upstream commits through loathers/garbage-collector@e4fece6c.
+- No Nightcap change.
+
 ## 1.0.1-nightcap.23 - 2026-10-28
 
 - Reconcile upstream's elapsed-turn fix (4b25f3aa), already present in Nightcap's
