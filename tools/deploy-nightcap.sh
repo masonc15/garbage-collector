@@ -13,7 +13,7 @@ version=$(node -p 'require("./packages/garbo/package.json").version')
 git diff --quiet HEAD -- packages yarn.lock || { echo 'Commit source changes before deployment.' >&2; exit 1; }
 # The hourly upstream sync on nuada pushes merges to the fork. Publishing from a
 # checkout without them would roll every account back to an older release.
-branch=$(git rev-parse --abbrev-ref HEAD)
+branch=${GARBO_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}
 if git remote get-url fork >/dev/null 2>&1 && git fetch -q fork "$branch" 2>/dev/null \
     && ! git merge-base --is-ancestor "fork/$branch" HEAD; then
     echo "fork/$branch has commits this checkout lacks; pull them first." >&2

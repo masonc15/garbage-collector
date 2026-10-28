@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.1-nightcap.23 - 2026-10-28
+
+- Reconcile upstream's elapsed-turn fix (4b25f3aa), already present in Nightcap's
+  session measurements, without replacing the late-run measurement logic.
+- Upgrade upstream sync to 1.1.0: isolate candidate merges and builds, preserve
+  local work, and hold unchanged conflicts or failed validation for review.
+- Add notification-free validation and prevent detached sync builds from
+  bypassing the fork's stale-source deployment guard.
+
 ## 1.0.1-nightcap.22 - 2026-10-25
 
 - Bring in 1 upstream commit through loathers/garbage-collector@c4383859.

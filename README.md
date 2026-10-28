@@ -103,8 +103,22 @@ for that. When `loathers/main` has commits this fork lacks, it merges them into
 `fix/low-resource-farming`. If the tests, build and typecheck pass, it commits
 the merge as the next nightcap release, pushes it, and publishes it to every
 account. It also keeps the fork's `main` the same as upstream's. A merge
-conflict or a failed build is emailed once and nothing is published; resolve it
-here, push, and the next hourly run releases it.
+conflict or a failed build is emailed once and nothing is published. The exact
+fork/upstream commit pair is then held for review instead of repeating the same
+failed merge each hour. A change to either branch permits a fresh attempt;
+`--retry-blocked` explicitly retries the same inputs after an environment repair.
+Resolve source conflicts here, push the branch, and the next hourly run releases it.
+
+Sync 1.1.0 merges and builds in a disposable `.worktrees/upstream-sync` checkout.
+It preserves the source checkout, including untracked files, and refuses to run
+over tracked edits, an unfinished merge, or unpublished local commits. An existing
+sync worktree is left for inspection rather than deleted. Failure still exits
+nonzero while an unchanged input pair is held, so monitoring retains the blocker.
+`--no-notify` suppresses email. `--no-push` validates a candidate without pushing
+or publishing and retains a successful candidate at
+`refs/garbo-upstream-sync/verified`. These options are suitable for repair checks.
+The offline integration suite is `python3 tools/test_sync_upstream.py` on Linux;
+it uses temporary Git remotes and replaces mail/build boundaries, never live accounts.
 
 The build keeps upstream's file names, so upstream can change its build
 configs without conflicting with this fork. `tools/deploy-nightcap.sh` renames

@@ -9,7 +9,7 @@
 #
 # Each successful publish is emailed with the commits it brought in.
 # Nothing that fails is pushed or published. A conflict or failure is emailed
-# once per upstream commit and retried every hour; publishing while an account
+# once per upstream commit; unchanged conflicts wait for review. Publishing while an account
 # session holds a lease is retried quietly. Failures exit from inside functions,
 # because `set -e` does not apply to a function called as a condition.
 set -euo pipefail
@@ -18,11 +18,24 @@ UPSTREAM=${GARBO_UPSTREAM_URL:-https://github.com/loathers/garbage-collector.git
 BRANCH=fix/low-resource-farming
 KOL_DIR=${KOL_DIR:-$HOME/docker/kol}
 STATE_DIR=${XDG_STATE_HOME:-$HOME/.local/state}/garbo-upstream-sync
+SYNC_VERSION=1.1.0
+NO_NOTIFY=0
+NO_PUSH=0
+RETRY_BLOCKED=0
+for option in "$@"; do
+    case "$option" in
+        --no-notify) NO_NOTIFY=1 ;;
+        --no-push) NO_PUSH=1 ;;
+        --retry-blocked) RETRY_BLOCKED=1 ;;
+        *) echo 'usage: sync-upstream.sh [--no-notify] [--no-push] [--retry-blocked]' >&2; exit 2 ;;
+    esac
+done
 
 log() { printf '%s %s\n' "$(date '+%F %T')" "$*"; }
 yarn() { node .yarn/releases/yarn-3.6.4.cjs "$@"; }
 
 notify() { # $1=key sent once, $2=subject, stdin=body
+    if [ "$NO_NOTIFY" = 1 ]; then cat >/dev/null; return 0; fi
     local sent=$STATE_DIR/notified to from
     if grep -qxF "$1" "$sent" 2>/dev/null; then
         cat >/dev/null
@@ -32,6 +45,11 @@ notify() { # $1=key sent once, $2=subject, stdin=body
     from=$(sed -n 's/^EMAIL_FROM=//p' "$KOL_DIR/.env")
     { printf 'To: %s\nFrom: %s\nSubject: %s\n\n' "$to" "$from" "$2"; cat; } | msmtp -t \
         && printf '%s\n' "$1" >>"$sent"
+}
+
+block_merge() {
+    printf '%s\n%s\n' "$merge_key" "$1" >"$STATE_DIR/blocked.tmp"
+    mv "$STATE_DIR/blocked.tmp" "$STATE_DIR/blocked"
 }
 
 deployed_version() {
@@ -67,8 +85,9 @@ merge_upstream() {
     if ! git merge -q --no-ff --no-edit -m "merge upstream main" upstream/main; then
         conflicts=$(git diff --name-only --diff-filter=U)
         if [ "$conflicts" != yarn.lock ]; then
-            git merge --abort
-            log "conflicts: $(echo $conflicts)"
+            if [ -f "$(git rev-parse --git-path MERGE_HEAD)" ]; then git merge --abort; fi
+            log "conflicts: $conflicts"
+            if [ -n "$conflicts" ]; then block_merge "conflicts: $conflicts"; fi
             printf '%s\n' "Merging loathers/main (through $upstream, $count commits) into $BRANCH conflicts in:" \
                 "" "$conflicts" "" "The fork stays on its current release; nothing was published." \
                 "Resolve the merge by hand on the Mac, push $BRANCH, and the next hourly sync releases it." \
@@ -100,9 +119,16 @@ NODE
     git commit -q -m "release nightcap.${next##*nightcap.}"
     if ! tools/deploy-nightcap.sh --build-only >"$STATE_DIR/build.log" 2>&1; then
         log "build failed; see $STATE_DIR/build.log"
+        block_merge "validation failed; see $STATE_DIR/build.log"
         tail -n 60 "$STATE_DIR/build.log" | sed 's/\x1b\[[0-9;]*m//g' \
             | notify "build-$upstream" "garbo upstream sync: tests or build failed"
         exit 1
+    fi
+    rm -f "$STATE_DIR/blocked"
+    if [ "$NO_PUSH" = 1 ]; then
+        git update-ref refs/garbo-upstream-sync/verified HEAD
+        log "verified $next; --no-push leaves remote and deployment unchanged"
+        return 0
     fi
     git push -q fork "HEAD:refs/heads/$BRANCH"
     log "pushed $next"
@@ -113,14 +139,55 @@ main() {
     exec 9>"$STATE_DIR/lock"
     flock -n 9 || { log "another sync is running"; return 0; }
     cd "$(dirname "$0")/.."
+    local repo worktree merge_key
+    repo=$(git rev-parse --show-toplevel)
+    worktree=$repo/.worktrees/upstream-sync
+    if ! git diff --quiet HEAD; then
+        log "local changes present; refusing to discard them"
+        return 1
+    fi
+    if [ -f "$(git rev-parse --git-path MERGE_HEAD)" ]; then
+        log "local merge in progress; finish it before syncing"
+        return 1
+    fi
 
     git fetch -q fork "$BRANCH"
     git fetch -q "$UPSTREAM" +main:refs/remotes/upstream/main
-    git checkout -q "$BRANCH"
-    git reset -q --hard "fork/$BRANCH"
-    git clean -qfd
+    if ! git merge-base --is-ancestor HEAD "fork/$BRANCH"; then
+        log "unpublished local commits; publish or reconcile them before syncing"
+        return 1
+    fi
+    if [ "$(git symbolic-ref --quiet --short HEAD || true)" != "$BRANCH" ]; then
+        log "source checkout must be on $BRANCH; leaving it unchanged"
+        return 1
+    fi
+    # Bring deployed tools forward without overwriting edits or untracked files.
+    git merge --ff-only --quiet "fork/$BRANCH"
+    merge_key=$(git rev-parse "fork/$BRANCH"):$(git rev-parse upstream/main)
+    if [ "$RETRY_BLOCKED" != 1 ] && [ -f "$STATE_DIR/blocked" ] \
+        && [ "$(head -n 1 "$STATE_DIR/blocked")" = "$merge_key" ]; then
+        log "unchanged blocked merge; review $STATE_DIR/blocked or use --retry-blocked"
+        return 1
+    fi
+    if [ -e "$worktree" ]; then
+        log "existing sync worktree $worktree; inspect it before retrying"
+        return 1
+    fi
+    mkdir -p "$repo/.worktrees"
+    git worktree add -q --detach "$worktree" "fork/$BRANCH"
+    export GARBO_BRANCH=$BRANCH
+    # Only remove this run's disposable worktree, never the source checkout.
+    SYNC_REPO=$repo
+    SYNC_WORKTREE=$worktree
+    trap 'cd "$SYNC_REPO"; git worktree remove --force "$SYNC_WORKTREE" || true' EXIT
+    cd "$worktree"
     if ! git merge-base --is-ancestor upstream/main HEAD; then
         merge_upstream
+    fi
+    rm -f "$STATE_DIR/blocked"
+    if [ "$NO_PUSH" = 1 ]; then
+        log "sync $SYNC_VERSION verified; pushes and publication disabled"
+        return 0
     fi
     # Keep the fork's main the same as upstream's (GitHub's "Sync fork").
     git push -q fork upstream/main:refs/heads/main || log "could not update the fork's main"
