@@ -96,6 +96,11 @@ import {
   withProperty,
 } from "libram";
 import { acquire, priceCaps } from "./acquire";
+import {
+  dietTargetCap,
+  isUnavailableDietItem,
+  UnavailableDietItemError,
+} from "./dietCap";
 import { withVIPClan } from "./clan";
 import { globalOptions } from "./config";
 import { expectedGregs } from "./resources/extrovermectin";
@@ -1291,12 +1296,15 @@ function withoutDominatedItems(menu: MenuItem<Note>[]): MenuItem<Note>[] {
   );
 }
 
-export function computeDiet(): {
+export function computeDiet(excluded: ReadonlySet<Item> = new Set()): {
   diet: () => Diet<Note>;
   shotglass: () => Diet<Note>;
   pantsgiving: () => Diet<Note>;
   sweatpants: () => Diet<Note>;
 } {
+  // Items that could not be bought within their cap are left off a replanned diet
+  const available = () =>
+    menu().filter((menuItem) => !excluded.has(menuItem.item));
   // Handle spleen manually, as the diet planner doesn't support synth. Only fill food and booze.
 
   const orEmpty = (diet: Diet<Note>) =>
@@ -1324,7 +1332,7 @@ export function computeDiet(): {
   return {
     diet: () =>
       planBalancedDiet(
-        menu().filter(
+        available().filter(
           (menuItem) =>
             !priceCaps[menuItem.item.name] ||
             priceCaps[menuItem.item.name] >= mallPrice(menuItem.item),
@@ -1333,7 +1341,7 @@ export function computeDiet(): {
       ),
     shotglass: () =>
       planBalancedDiet(
-        menu().filter(
+        available().filter(
           (menuItem) =>
             itemType(menuItem.item) === "booze" && menuItem.size === 1,
         ),
@@ -1341,7 +1349,7 @@ export function computeDiet(): {
       ),
     pantsgiving: () =>
       planBalancedDiet(
-        menu().filter(
+        available().filter(
           (menuItem) =>
             (itemType(menuItem.item) === "food" && menuItem.size === 1) ||
             [
@@ -1356,7 +1364,7 @@ export function computeDiet(): {
       ),
     sweatpants: () =>
       planBalancedDiet(
-        menu().filter(
+        available().filter(
           (menuItem) =>
             itemType(menuItem.item) === "booze" && menuItem.size <= 3,
         ),
@@ -1620,15 +1628,52 @@ function dietEntryTask(
   dietEntry: Diet<Note>["entries"][number],
   countToConsume: number,
   actions: Map<Item, ItemAction>,
+  diet: Diet<Note>,
 ): DietTask {
   const steps = dietEntry.menuItems.map((menuItem) => ({
     menuItem,
     action: actions.get(menuItem.item) ?? consumeAction,
   }));
+  const target = dietEntry.menuItems[dietEntry.menuItems.length - 1];
+  // Worked out now, while prices still match the plan that was printed
+  const plannedCap = dietTargetCap({
+    ownValue:
+      getAverageAdventures(target.item) * MPA + (target.additionalValue ?? 0),
+    entryValuePerUnit: dietEntry.expectedValue(MPA, diet) / dietEntry.quantity,
+    helperPricePerUnit: sum(dietEntry.menuItems.slice(0, -1), (helper) =>
+      helper.price(),
+    ),
+    plannedPrice: target.price(),
+  });
+  const targetCap = Math.min(
+    plannedCap,
+    priceCaps[target.item.name] ?? Infinity,
+  );
+  // Special actions (pocket wish, speakeasy, ...) acquire their own items
+  const buyTargetFirst =
+    !actions.has(target.item) &&
+    target.item.tradeable &&
+    !availableFromMoonZoneRestaurant(target.item);
   return {
     name: `${countToConsume} ${dietEntry.target()}`,
     perform: () => {
+      // Buy the target before any helper is used, so a failed purchase wastes nothing
+      if (buyTargetFirst && itemAmount(target.item) < countToConsume) {
+        acquire(countToConsume, target.item, targetCap, false, undefined, true);
+        if (itemAmount(target.item) < countToConsume) {
+          throw new UnavailableDietItemError(target.item.name, targetCap);
+        }
+      }
       for (const { menuItem, action } of steps) {
+        if (menuItem === target && buyTargetFirst) {
+          consumeSafe(
+            countToConsume,
+            menuItem.item,
+            menuItem.additionalValue,
+            true,
+          );
+          continue;
+        }
         action(countToConsume, menuItem);
       }
     },
@@ -1711,7 +1756,7 @@ function dietTasks(diet: Diet<Note>): DietTask[] {
     }
     if (usesShotglass) shotglassAvailable = false;
     entry.remaining -= count;
-    tasks.push(dietEntryTask(entry.dietEntry, count, actions));
+    tasks.push(dietEntryTask(entry.dietEntry, count, actions, diet));
   }
   return tasks;
 }
@@ -1726,6 +1771,34 @@ export function consumeDiet(diet: Diet<Note>, name: DietName): void {
   const tasks = dietTasks(diet);
   logprint(`Diet order: ${tasks.map((task) => task.name).join(", ")}`);
   for (const task of tasks) task.perform();
+}
+
+const MAX_REPLANS = 3;
+
+/**
+ * Consume a diet. If an entry's target can't be bought within its cap, plan
+ * again from the current organ state without that item. The target is bought
+ * before its helpers are used, so a failed purchase costs nothing.
+ */
+function consumeReplanning(
+  diet: Diet<Note>,
+  plan: (builder: ReturnType<typeof computeDiet>) => Diet<Note>,
+  name: DietName,
+): void {
+  const excluded = new Set<Item>();
+  for (;;) {
+    try {
+      consumeDiet(diet, name);
+      return;
+    } catch (error) {
+      if (!isUnavailableDietItem(error) || excluded.size >= MAX_REPLANS) {
+        throw error;
+      }
+      print(error.message, "red");
+      excluded.add(toItem(error.itemName));
+      diet = plan(computeDiet(excluded));
+    }
+  }
 }
 
 function dailySpecialPrice(item: Item) {
@@ -1800,7 +1873,11 @@ export function runDiet(): void {
         use($item`astral six-pack`);
       }
       if (!get("_mimeArmyShotglassUsed") && have($item`mime army shotglass`)) {
-        consumeDiet(dietBuilder.shotglass(), "SHOTGLASS");
+        consumeReplanning(
+          dietBuilder.shotglass(),
+          (builder) => builder.shotglass(),
+          "SHOTGLASS",
+        );
       }
 
       if (
@@ -1811,7 +1888,11 @@ export function runDiet(): void {
         cliExecute("barrelprayer buff");
       }
 
-      consumeDiet(dietBuilder.diet(), "FULL");
+      consumeReplanning(
+        dietBuilder.diet(),
+        (builder) => builder.diet(),
+        "FULL",
+      );
       const organChecks = [
         { current: myInebriety, max: inebrietyLimit },
         { current: mySpleenUse, max: spleenLimit },
