@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.1-nightcap.27 - 2026-11-02
+
+- Fix a diet crash that wasted helpers. The planner credits a food with its
+  helpers' adventures (and toasted brie with Refined Palate), but the purchase
+  was capped at the food's own adventures. On noctys the brie cap was 18000
+  against an 18475 listing, after a 7490 mini kiwi aioli had been used. Each
+  entry's target is now capped at the most the plan allowed for it, still
+  bounded by `priceCaps`, and bought before any of its helpers.
+- If a target still can't be bought, plan the diet again without it (up to
+  three times) instead of ending the run.
+
 ## 1.0.1-nightcap.26 - 2026-10-29
 
 - Bring in 1 upstream commit through loathers/garbage-collector@46ffdcfb.
