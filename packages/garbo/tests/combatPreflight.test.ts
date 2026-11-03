@@ -48,6 +48,9 @@ vi.mock("../src/familiar/preflight", () => ({
   checkFamiliarAbilities: () => {},
 }));
 vi.mock("../src/clan", () => ({}));
+vi.mock("../src/stash", () => ({}));
+vi.mock("../src/cleanup", () => ({}));
+vi.mock("../src/resources/garden", () => ({}));
 vi.mock("../src/dailies", () => ({}));
 vi.mock("../src/diet", () => ({}));
 vi.mock("../src/fights", () => ({}));

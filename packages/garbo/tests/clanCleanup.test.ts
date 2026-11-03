@@ -4,6 +4,7 @@ const state = vi.hoisted(() => ({
   clan: 123,
   failCleanup: false,
   failEntry: false,
+  canCleanup: true,
   output: [] as string[],
 }));
 vi.mock("kolmafia", () => ({
@@ -31,6 +32,9 @@ vi.mock("libram", () => ({
     },
   },
 }));
+vi.mock("../src/cleanup", () => ({
+  prepareForCleanup: () => state.canCleanup,
+}));
 vi.mock("../src/config", () => ({
   globalOptions: { prefs: { vipClan: "456" } },
 }));
@@ -44,6 +48,7 @@ beforeEach(() => {
     clan: 123,
     failCleanup: false,
     failEntry: false,
+    canCleanup: true,
     output: [],
   });
 });
@@ -78,4 +83,20 @@ test("failed clan entry never runs the action", () => {
     }),
   ).toThrow(/Could not join clan/);
   expect(ran).toBe(false);
+});
+
+test("an unresolved choice prevents cleanup from switching clans", () => {
+  state.canCleanup = false;
+  expect(withVIPClan(() => "done")).toBe("done");
+  expect(state.clan).toBe(456);
+});
+test("an action error survives blocked cleanup", () => {
+  state.canCleanup = false;
+  const error = new Error("blocked choice");
+  expect(() =>
+    withVIPClan(() => {
+      throw error;
+    }),
+  ).toThrow(error);
+  expect(state.clan).toBe(456);
 });

@@ -121,3 +121,12 @@ test("other open choices are not walked away from", () => {
   expect(() => chooseRufusQuest(3)).toThrow(/choice 1501/);
   expect(state.visits).toEqual([]);
 });
+
+test.each([2, 3] as const)("dynamic selector validates option %i", (option) => {
+  expect(chooseRufusQuest(() => option)).toBe(true);
+  expect(state.type).toBe(option === 2 ? "artifact" : "items");
+});
+test("dynamic selection still rejects a wrong quest type", () => {
+  state.wrongType = true;
+  expect(() => chooseRufusQuest(() => 3)).toThrow(/Rufus.*failed/i);
+});

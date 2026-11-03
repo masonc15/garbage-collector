@@ -165,7 +165,11 @@ function retrieveUntradeablePrice(it: Item) {
 }
 
 export interface PotionOptions {
-  providesDoubleDuration?: boolean;
+  /**
+   * Multiplier on the potion's effect duration. Doublers stack multiplicatively,
+   * e.g. Mayozapine plus Legendary Digestion quadruples a food's effects.
+   */
+  durationMultiplier?: number;
   canDouble?: boolean;
   effect?: Effect;
   duration?: number;
@@ -190,7 +194,7 @@ const BUFFER_TURNS = 30;
 
 export class Potion {
   potion: Item;
-  providesDoubleDuration?: boolean;
+  durationMultiplier: number;
   canDouble: boolean;
   overrideEffect?: Effect;
   overrideDuration?: number;
@@ -212,7 +216,7 @@ export class Potion {
 
   constructor(potion: Item, options: PotionOptions = {}) {
     this.potion = potion;
-    this.providesDoubleDuration = options.providesDoubleDuration;
+    this.durationMultiplier = options.durationMultiplier ?? 1;
     this.canDouble = options.canDouble ?? true;
     this.overrideDuration = options.duration;
     this.overrideEffect = options.effect;
@@ -225,7 +229,7 @@ export class Potion {
   doubleDuration(): Potion {
     if (this.canDouble) {
       return new Potion(this.potion, {
-        providesDoubleDuration: true,
+        durationMultiplier: 2 * this.durationMultiplier,
         canDouble: this.canDouble,
         duration: this.overrideDuration,
         effect: this.overrideEffect,
@@ -244,7 +248,7 @@ export class Potion {
   effectDuration(): number {
     return (
       (this.overrideDuration ?? getModifier("Effect Duration", this.potion)) *
-      (this.providesDoubleDuration ? 2 : 1)
+      this.durationMultiplier
     );
   }
 
@@ -527,7 +531,6 @@ function useAsValuable(
 }
 
 export const rufusPotion = new Potion($item`closed-circuit pay phone`, {
-  providesDoubleDuration: false,
   canDouble: false,
   effect: $effect`Shadow Waters`,
   duration: 30,

@@ -395,7 +395,7 @@ export function endSession(printLog = true, args = ""): void {
 
   if (printLog) {
     // list the top 3 gaining and top 3 losing items; worthless items are neither
-    itemDetails.sort((a, b) => b.value - a.value);
+    itemDetails.sort((a, b) => b.value - a.value || 0);
     const winners = itemDetails.filter((d) => d.value >= 1).slice(0, 3);
     const losers = itemDetails
       .filter((d) => d.value <= -1)

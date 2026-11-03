@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1-nightcap.28 - 2026-11-03
+
+- Reconcile 12 upstream commits through 77975740, including the stash and free-fight refactors that blocked upstream sync.
+- Preserve original-error reporting and Rufus quest checks in the moved code while retaining upstream cleanup guards, quest cost selection, and Rhino sorting fix.
+- Preserve Nightcap combat preflight, cleaver recovery, diet purchase caps, and late-run session measurements.
+
 ## 1.0.1-nightcap.27 - 2026-11-02
 
 - Fix a diet crash that wasted helpers. The planner credits a food with its
