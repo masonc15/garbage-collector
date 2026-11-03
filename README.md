@@ -103,7 +103,9 @@ for that. When `loathers/main` has commits this fork lacks, it merges them into
 `fix/low-resource-farming`. If the tests, build and typecheck pass, it commits
 the merge as the next nightcap release, pushes it, and publishes it to every
 account. It also keeps the fork's `main` the same as upstream's. A merge
-conflict or a failed build is emailed once and nothing is published. The exact
+conflict or a failed build is emailed once and nothing is published. A conflict
+is emailed once per fork commit and set of conflicting files, so later upstream
+commits that run into the same unresolved conflict don't send it again. The exact
 fork/upstream commit pair is then held for review instead of repeating the same
 failed merge each hour. A change to either branch permits a fresh attempt;
 `--retry-blocked` explicitly retries the same inputs after an environment repair.

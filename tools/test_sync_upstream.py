@@ -111,6 +111,24 @@ PYTHON
         self.assertIn("Auto-merging", third.stdout)
         self.assertNotEqual(third.returncode, 0)
 
+    def conflict_mails(self):
+        mail = self.root / "kol/mail"
+        return mail.read_text().count("Subject: garbo upstream sync: merge conflict") if mail.exists() else 0
+
+    def test_same_conflict_is_emailed_once_across_upstream_commits(self):
+        self.run_sync()
+        self.assertEqual(self.conflict_mails(), 1)
+        self.change_upstream("different upstream")
+        r = self.run_sync()
+        self.assertIn("Auto-merging", r.stdout)
+        self.assertEqual(self.conflict_mails(), 1)
+        # A new fork commit that still conflicts is worth a fresh email.
+        (self.repo / "fork-new.txt").write_text("fork input changed")
+        self.commit("fork update")
+        self.git("push", "-q", "fork", BRANCH)
+        self.run_sync()
+        self.assertEqual(self.conflict_mails(), 2)
+
     def test_local_tracked_changes_are_preserved(self):
         p = self.repo / "conflict.txt"
         p.write_text("uncommitted work\n")

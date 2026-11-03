@@ -8,8 +8,10 @@
 # publishes whatever the fork branch holds if nuada runs anything else.
 #
 # Each successful publish is emailed with the commits it brought in.
-# Nothing that fails is pushed or published. A conflict or failure is emailed
-# once per upstream commit; unchanged conflicts wait for review. Publishing while an account
+# Nothing that fails is pushed or published. A conflict is emailed once per
+# fork commit and set of conflicting files, so new upstream commits that hit the
+# same unresolved conflict stay quiet; other failures are emailed once per
+# upstream commit; unchanged conflicts wait for review. Publishing while an account
 # session holds a lease is retried quietly. Failures exit from inside functions,
 # because `set -e` does not apply to a function called as a condition.
 set -euo pipefail
@@ -18,7 +20,7 @@ UPSTREAM=${GARBO_UPSTREAM_URL:-https://github.com/loathers/garbage-collector.git
 BRANCH=fix/low-resource-farming
 KOL_DIR=${KOL_DIR:-$HOME/docker/kol}
 STATE_DIR=${XDG_STATE_HOME:-$HOME/.local/state}/garbo-upstream-sync
-SYNC_VERSION=1.1.0
+SYNC_VERSION=1.2.0
 NO_NOTIFY=0
 NO_PUSH=0
 RETRY_BLOCKED=0
@@ -77,8 +79,9 @@ published_report() { # $1=new version, $2=old version, $3=old commit
 }
 
 merge_upstream() {
-    local upstream count subject version next conflicts
+    local upstream count subject version next conflicts fork_head
     upstream=$(git rev-parse --short=8 upstream/main)
+    fork_head=$(git rev-parse --short=8 HEAD)
     count=$(git rev-list --count HEAD..upstream/main)
     subject=$(git log -1 --format=%s upstream/main)
     log "merging $count upstream commits through $upstream ($subject)"
@@ -91,7 +94,8 @@ merge_upstream() {
             printf '%s\n' "Merging loathers/main (through $upstream, $count commits) into $BRANCH conflicts in:" \
                 "" "$conflicts" "" "The fork stays on its current release; nothing was published." \
                 "Resolve the merge by hand on the Mac, push $BRANCH, and the next hourly sync releases it." \
-                | notify "conflict-$upstream" "garbo upstream sync: merge conflict"
+                | notify "conflict-$fork_head-$(printf '%s' "$conflicts" | git hash-object --stdin | cut -c1-8)" \
+                    "garbo upstream sync: merge conflict"
             exit 1
         fi
         # Two dependency changes: take upstream's lockfile and let yarn re-add ours.
