@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1-nightcap.29 - 2026-11-03
+
+- Bring in 1 upstream commit through loathers/garbage-collector@88f0cb74.
+- No Nightcap change.
+
 ## 1.0.1-nightcap.28 - 2026-11-03
 
 - Reconcile 12 upstream commits through 77975740, including the stash and free-fight refactors that blocked upstream sync.
