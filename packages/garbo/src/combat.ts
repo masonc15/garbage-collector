@@ -14,6 +14,7 @@ import {
   itemAmount,
   itemType,
   Location,
+  Monster,
   mpCost,
   myBuffedstat,
   myClass,
@@ -89,6 +90,12 @@ export function shouldAffirmationHate(): boolean {
     return false;
   }
   return true;
+}
+
+export function physicallyImmuneMonsters(): Monster[] {
+  return getMonsters($location`Shadow Rift`).filter(
+    (monster) => monster.physicalResistance >= 100,
+  );
 }
 
 function preferMuscleCombat(): boolean {
@@ -648,6 +655,7 @@ export class Macro extends StrictMacro {
         ),
       )
       .killTarget()
+      .killPhysicallyImmune()
       .externalIf(
         preferMuscleCombat(),
         Macro.ifNot(
@@ -680,6 +688,24 @@ export class Macro extends StrictMacro {
 
   static kill(): Macro {
     return new Macro().kill();
+  }
+
+  // Shadow Rift monsters ignore physical damage, so a muscle-preferring
+  // character's Lunging Thrust-Smack lands only its elemental bonus and can
+  // run out the 30-round clock. Use elemental spells against them first.
+  killPhysicallyImmune(): Macro {
+    const immune = physicallyImmuneMonsters();
+    if (!immune.length) return this;
+    return this.if_(
+      immune,
+      Macro.trySkillRepeat(
+        $skill`Saucegeyser`,
+        $skill`Wave of Sauce`,
+        $skill`Saucestorm`,
+      )
+        .ifNot($element`Cold`, Macro.trySkillRepeat($skill`Northern Explosion`))
+        .trySkillRepeat($skill`Weapon of the Pastalord`),
+    );
   }
 
   // Special handling for resistant targets
