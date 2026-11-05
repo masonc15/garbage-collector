@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.1-nightcap.31 - 2026-11-04
+
+- Kill Shadow Rift monsters with elemental spells. They take no physical
+  damage, but a character with more buffed Muscle than Mysticality led with
+  Lunging Thrust-Smack, which landed only its elemental bonus. On noctys a
+  shadow tree took 9 a hit, the fight reached round 30, and garbo stopped on
+  the lost combat. The kill macro now tries Saucegeyser, Wave of Sauce,
+  Saucestorm, Northern Explosion and Weapon of the Pastalord first against
+  any Shadow Rift monster with full physical resistance.
+
 ## 1.0.1-nightcap.30 - 2026-11-04
 
 - Bring in 1 upstream commit through loathers/garbage-collector@a85933a4.
