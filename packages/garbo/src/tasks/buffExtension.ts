@@ -8,9 +8,10 @@ import {
   ActionSource,
   ensureEffect,
   get,
+  getStep,
   have,
   Mining,
-  questStep,
+  QuestState,
   realmAvailable,
 } from "libram";
 import { GarboTask } from "./engine";
@@ -30,6 +31,7 @@ import { GarboStrategy } from "../combatStrategy";
 import { effectExtenderValue } from "../potions";
 import { meatMood } from "../mood";
 import { estimatedGarboTurns } from "../turns";
+import { safeRestore } from "../restore";
 
 function getRun(): ActionSource {
   return tryFindFreeRunOrBanish(freeRunConstraints()) ?? ltbRun();
@@ -93,7 +95,7 @@ const BuffExtensionTasks: GarboTask[] = [
       globalOptions.ascend &&
       sober() &&
       !have($effect`Lucky!`) &&
-      questStep("questM16Temple") > 0 &&
+      getStep("questM16Temple") > QuestState.STARTED &&
       mallPrice($item`stone wool`) <
         3 * get("valueOfAdventure") + effectExtenderValue(3, 10) &&
       !!getRun(),
@@ -121,7 +123,14 @@ const PostBuffExtensionTasks: GarboTask[] = [
     name: "Free 70s Mining",
     ready: () => realmAvailable("hot"),
     completed: () => Mining.countFreeMines() <= 0,
-    do: () => cliExecute("oreo 0"),
+    do: () => {
+      if (!cliExecute("oreo 0 survive=true")) {
+        throw new Error(
+          "Free mining failed; check Oreo's error before continuing.",
+        );
+      }
+    },
+    post: () => safeRestore(true),
     sobriety: "sober",
     spendsTurn: false,
   },

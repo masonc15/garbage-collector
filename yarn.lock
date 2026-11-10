@@ -5060,7 +5060,7 @@ __metadata:
     grimoire-kolmafia: ^0.3.35
     jiti: ^2.6.1
     kolmafia: ^5.29376.0
-    libram: ^0.11.41
+    libram: ^0.11.43
     lint-staged: ^15.2.9
     madge: ^8.0.0
     prettier: ^3.3.3
@@ -5077,14 +5077,14 @@ __metadata:
     eslint-config-garbo: "workspace:^"
     jiti: ^2.6.1
     kolmafia: ^5.29376.0
-    libram: ^0.11.41
+    libram: ^0.11.43
     lint-staged: ^15.2.9
     madge: ^8.0.0
     prettier: ^3.3.3
     typescript: ^5.5.4
   peerDependencies:
     kolmafia: ^5.29250.0
-    libram: ^0.11.32
+    libram: ^0.11.42
   languageName: unknown
   linkType: soft
 
@@ -5133,7 +5133,7 @@ __metadata:
     grimoire-kolmafia: ^0.3.35
     jiti: ^2.6.1
     kolmafia: ^5.29376.0
-    libram: ^0.11.41
+    libram: ^0.11.43
     lint-staged: ^15.2.9
     madge: ^8.0.0
     prettier: ^3.3.3
@@ -5832,15 +5832,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"libram@npm:^0.11.41":
-  version: 0.11.41
-  resolution: "libram@npm:0.11.41"
+"libram@npm:^0.11.43":
+  version: 0.11.43
+  resolution: "libram@npm:0.11.43"
   dependencies:
     core-js: ^3.47.0
     entities: ^7.0.0
   peerDependencies:
     kolmafia: ^5.29250.0
-  checksum: 325cc40e6b649cb2a2e2013b027225c5f700f780559dd2f9a35a17fce8fe0b3afa99a3fbfe5101e4da0cfa3458370a2db96e2a05347bbd240619b4f960bc8c07
+  checksum: 0e7d26f292b4538b971e068455ea3b6ffc258088f75e2ad99591216338c89e2133d568f3be5e0f8f5d8fbd1dc0d83250005ac32b7079930e894668f444e6e47e
   languageName: node
   linkType: hard
 

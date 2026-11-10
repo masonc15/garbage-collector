@@ -20,6 +20,7 @@ import {
   ClosedCircuitPayphone,
   get,
   getAcquirePrice,
+  getStep,
   have,
   maxBy,
   sum,
@@ -33,7 +34,6 @@ import {
   bestShadowRift,
   felizValue,
   freeRest,
-  questStep,
   sober,
   valueDrops,
 } from "../../lib";
@@ -90,7 +90,7 @@ const forcers: RiftForcer[] = [
       while (CinchoDeMayo.currentCinch() < 60) {
         if (!freeRest()) throw new Error("We are out of free rests!");
       }
-      useSkill($skill`Cincho: Fiesta Exit`);
+      useSkill(1, $skill`Cincho: Fiesta Exit`);
     },
   },
   {
@@ -159,7 +159,7 @@ function shadowRiftTasks(): MappingTask[] {
     {
       name: "Submit Rufus Quest",
       mapSafe: true,
-      completed: () => questStep("questRufus") !== 1,
+      completed: () => getStep("questRufus") !== 1,
       do: () => {
         ClosedCircuitPayphone.submitQuest();
       },
@@ -249,7 +249,7 @@ function shadowRiftTasks(): MappingTask[] {
           forcer.available() &&
           bestForcer() === forcer &&
           shadowWatersValue() > forcer.cost(),
-        completed: () => questStep("questRufus") === 1,
+        completed: () => getStep("questRufus") === 1,
         choices: commonChoices,
         outfit: () => {
           const outfit = freeFightOutfit(forcer.spec, riftLocation());

@@ -25,9 +25,9 @@ vi.mock("../src/config", () => ({
     nobarf: false,
   },
 }));
-vi.mock("../src/outfit/dropsgearAccessories", () => ({
-  usingThumbRing: () => false,
-}));
+vi.mock("../src/outfit/dropsgear", () => ({ bonusGear: () => new Map() }));
+vi.mock("../src/outfit/lib", () => ({ BonusEquipMode: { BARF: 0 } }));
+vi.mock("../src/farmingStrategy", () => ({}));
 vi.mock("../src/target/fights", () => ({ copyTargetCount: () => 0 }));
 vi.mock("../src/lib", () => ({
   howManySausagesCouldIEat: () => 0,

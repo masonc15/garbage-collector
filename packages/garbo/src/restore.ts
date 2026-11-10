@@ -26,7 +26,9 @@ export function safeRestoreMpTarget(): number {
   return Math.min(myMaxmp(), 200);
 }
 
-export function safeRestore(): void {
+export function safeRestore(removeBeatenUp = false): void {
+  checkCombatSafety(removeBeatenUp);
+  if (removeBeatenUp && have($effect`Beaten Up`)) uneffect($effect`Beaten Up`);
   checkCombatSafety();
   if (
     lastMonster() ===

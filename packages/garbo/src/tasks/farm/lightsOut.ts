@@ -21,10 +21,10 @@ export const lightsOutTask: GarboTask = {
   completed: () => totalTurnsPlayed() === get("lastLightsOutTurn"),
   do: () => get("nextSpookyravenStephenRoom") as Location,
   outfit: () =>
-    meatTargetOutfit(
-      sober() ? {} : { offhand: $item`Drunkula's wineglass` },
-      get("nextSpookyravenStephenRoom") ?? $location.none,
-    ),
+    meatTargetOutfit(sober() ? {} : { offhand: $item`Drunkula's wineglass` }, {
+      location: get("nextSpookyravenStephenRoom") ?? $location.none,
+      target: $monster`Stephen Spookyraven`,
+    }),
   spendsTurn: isSteve,
   combat: new GarboStrategy(() =>
     Macro.if_($monster`Stephen Spookyraven`, Macro.basicCombat()).abortWithMsg(

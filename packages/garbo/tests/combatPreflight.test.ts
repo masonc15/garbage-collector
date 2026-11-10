@@ -41,9 +41,11 @@ vi.mock("grimoire-kolmafia", () => ({
 }));
 vi.mock("../src/config", () => ({
   globalOptions: state.options,
+  fillArgs: () => {},
   FarmingMethod: { BARF_MOUNTAIN: "barf", THE_CORAL_CORRAL: "coral" },
 }));
 vi.mock("../src/lib", () => ({ checkGithubVersion: () => {} }));
+vi.mock("../src/familiar/barfFamiliar", () => ({}));
 vi.mock("../src/familiar/preflight", () => ({
   checkFamiliarAbilities: () => {},
 }));

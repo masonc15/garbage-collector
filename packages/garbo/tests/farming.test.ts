@@ -46,6 +46,10 @@ vi.mock("libram", () => ({
   },
 }));
 vi.mock("../src/familiar/freeFightFamiliar", () => ({ menu: () => [] }));
+vi.mock("../src/familiar/toyCupidBowValue", () => ({
+  getCupidBowValues: () => new Map(),
+}));
+vi.mock("../src/garboValue", () => ({}));
 vi.mock("../src/familiar/lib", () => ({
   getUsedTcbFamiliars: () => [],
   tcbValue: () => 0,

@@ -99,3 +99,14 @@ test("the intentional sea loss is cured before recovery", () => {
     vi.mocked(restoreHp).mock.invocationCallOrder[0],
   );
 });
+
+test("explicit cleanup may cure beaten up but never ignores a loss", () => {
+  state.beaten = true;
+  state.lost = true;
+  expect(() => safeRestore(true)).toThrow(/lost your most recent combat/);
+  expect(uneffect).not.toHaveBeenCalled();
+  state.lost = false;
+  safeRestore(true);
+  expect(uneffect).toHaveBeenCalledWith("Beaten Up");
+  expect(state.beaten).toBe(false);
+});

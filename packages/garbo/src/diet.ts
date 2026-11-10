@@ -239,7 +239,7 @@ function eatSafe(qty: number, item: Item) {
     !get("_legendarySpiceGhostFood") &&
     $thrall`Spice Ghost`.level + (get("pumpkinSpiceWhorlUsed") ? 3 : 0) >= 11
   ) {
-    useSkill($skill`Bind Spice Ghost`);
+    useSkill(1, $skill`Bind Spice Ghost`);
   }
   useIfUnused($item`milk of magnesium`, "_milkOfMagnesiumUsed", 5 * MPA);
   consumeWhileRespectingMoonRestaurant(() => {
@@ -247,13 +247,13 @@ function eatSafe(qty: number, item: Item) {
   }, item);
 }
 
-const EXPENSIVE_SONGS = FarmingStrategy.isUnderwater()
-  ? $effects`The Ballad of Richie Thingfinder, Chorale of Companionship, Donho's Bubbly Ballad`
-  : $effects`The Ballad of Richie Thingfinder, Chorale of Companionship`;
 const USEFUL_SONGS = $effects`Polka of Plenty, Ur-Kel's Aria of Annoyance, Fat Leon's Phat Loot Lyric`;
 function shrugForOde() {
+  const expensiveSongs = FarmingStrategy.isUnderwater()
+    ? $effects`The Ballad of Richie Thingfinder, Chorale of Companionship, Donho's Bubbly Ballad`
+    : $effects`The Ballad of Richie Thingfinder, Chorale of Companionship`;
   const inexpensiveSongs = getActiveSongs().filter(
-    (e) => !EXPENSIVE_SONGS.includes(e),
+    (e) => !expensiveSongs.includes(e),
   );
   const uselessSongs = inexpensiveSongs.filter(
     (e) => !USEFUL_SONGS.includes(e),
@@ -1840,13 +1840,13 @@ function specialItemActions(): Map<Item, ItemAction> {
       $item`designer sweatpants`,
       (countToConsume) => {
         for (let n = 1; n <= countToConsume; n++) {
-          useSkill($skill`Sweat Out Some Booze`);
+          useSkill(1, $skill`Sweat Out Some Booze`);
         }
       },
     ],
     [
       $item`august scepter`,
-      () => useSkill($skill`Aug. 16th: Roller Coaster Day!`),
+      () => useSkill(1, $skill`Aug. 16th: Roller Coaster Day!`),
     ],
     ...legendaryNoodleDishes.map((dish): [Item, ItemAction] => [
       dish,

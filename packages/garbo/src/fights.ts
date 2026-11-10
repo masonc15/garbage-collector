@@ -70,7 +70,6 @@ import {
   property,
   Robortender,
   set,
-  Snapper,
   SourceTerminal,
   undelay,
 } from "libram";
@@ -331,10 +330,7 @@ export function dailyFights(): void {
           property: "_garbo_meatChain",
           macro: firstChainMacro,
           goalMaximize: (spec: OutfitSpec, location: Location) =>
-            meatTargetOutfit(spec, {
-              location,
-              target: globalOptions.target,
-            }).dress(),
+            meatTargetOutfit(spec, location).dress(),
         },
         {
           shouldDo: true,
@@ -430,7 +426,7 @@ export function dailyFights(): void {
         have($skill`Musk of the Moose`) &&
         !have($effect`Musk of the Moose`)
       ) {
-        useSkill($skill`Musk of the Moose`);
+        useSkill(1, $skill`Musk of the Moose`);
       }
 
       if (nextFight.gregariousReplace) {
@@ -444,13 +440,6 @@ export function dailyFights(): void {
       const underwater = location.environment === "underwater";
 
       const famSpec = familiarSpec(underwater, nextFight);
-
-      if (
-        famSpec.familiar === $familiar`Red-Nosed Snapper` &&
-        Snapper.getTrackedPhylum() !== globalOptions.target.phylum
-      ) {
-        Snapper.trackPhylum(globalOptions.target.phylum);
-      }
 
       setLocation(location);
       meatTargetOutfit({ ...nextFight.spec, ...famSpec }, location).dress();
@@ -720,7 +709,9 @@ const freeRunFightSources = [
       const monsters = asArray(best.monster);
       if (best.preReq) best.preReq();
       const hasXO = myFamiliar() === $familiar`XO Skeleton`;
-      if (myThrall() !== $thrall.none) useSkill($skill`Dismiss Pasta Thrall`);
+      if (myThrall() !== $thrall.none) {
+        useSkill(1, $skill`Dismiss Pasta Thrall`);
+      }
       withMacro(
         Macro.if_(
           monsters.map((m) => `!monsterid ${m.id}`).join(" && "),
@@ -1308,6 +1299,10 @@ function killRobortCreaturesForFree() {
   if (!have($familiar`Robortender`)) return;
 
   const currentHeads = availableAmount($item`fish head`);
+  const remainingLocketFights = () =>
+    CombatLoversLocket.have()
+      ? Math.max(0, CombatLoversLocket.reminiscesLeft() - 1)
+      : 0;
   let freeKill = findFreeKill();
   while (
     freeKill &&
@@ -1327,6 +1322,10 @@ function killRobortCreaturesForFree() {
         location: $location`The Copperhead Club`,
         target: $monster`Mob Penguin Capo`,
       },
+      {
+        // The locket fights immediately follow the maps in the same Robortender stint.
+        combatCount: Cartography.availableMaps() + remainingLocketFights(),
+      },
     ).dress();
     withMacro(
       freeKill.macro instanceof Item
@@ -1341,11 +1340,7 @@ function killRobortCreaturesForFree() {
     freeKill = findFreeKill();
   }
 
-  while (
-    freeKill &&
-    CombatLoversLocket.have() &&
-    CombatLoversLocket.reminiscesLeft() > 1
-  ) {
+  while (freeKill && remainingLocketFights() > 0) {
     const roboTarget = CombatLoversLocket.findMonster(
       (monster: Monster) => !BAD_CLL_MONSTERS.includes(monster),
       (monster: Monster) =>
@@ -1358,18 +1353,21 @@ function killRobortCreaturesForFree() {
       (monster: Monster) => !BAD_CLL_MONSTERS.includes(monster),
       valueDrops,
     );
-    const familiar =
-      regularTarget === roboTarget
-        ? freeFightFamiliar(regularTarget, {
-            canChooseMacro: roboTarget.attributes.includes("FREE"),
-          })
-        : $familiar`Robortender`;
+    const requiresRobortender = regularTarget !== roboTarget;
+    const familiar = requiresRobortender
+      ? $familiar`Robortender`
+      : freeFightFamiliar(regularTarget, {
+          canChooseMacro: roboTarget.attributes.includes("FREE"),
+        });
 
     freeFightOutfit(
       roboTarget.attributes.includes("FREE")
         ? { familiar }
         : { ...freeKill.spec, familiar },
       roboTarget,
+      {
+        combatCount: requiresRobortender ? remainingLocketFights() : undefined,
+      },
     ).dress();
     withMacro(
       isFree(roboTarget)

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1-nightcap.32
+
+- Merge upstream 27c85f06 while preserving Nightcap safety checks, diet limits, session accounting, and the optional Stephen fight.
+
 ## 1.0.1-nightcap.31 - 2026-11-04
 
 - Kill Shadow Rift monsters with elemental spells. They take no physical

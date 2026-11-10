@@ -29,20 +29,22 @@ import {
   Counter,
   CrepeParachute,
   Delayed,
+  EverfullDarts,
   get,
   getModifier,
+  getStep,
   GingerBread,
   have,
   HeavyRains,
   LegendarySealClubbingClub,
   PeridotOfPeril,
-  questStep,
+  QuestState,
   SourceTerminal,
   TrainSet,
   undelay,
   withChoice,
 } from "libram";
-import { Outfit, OutfitSpec, Quest } from "grimoire-kolmafia";
+import { OutfitSpec, Quest } from "grimoire-kolmafia";
 import {
   canAdventureOrUnlock,
   hasNameCollision,
@@ -67,7 +69,8 @@ import {
 } from "../../outfit/lib";
 import { meatTargetOutfit } from "../../outfit/target";
 import { ThesisTask } from "../thesis";
-import { GarboTask } from "../engine";
+import { FarmingTask } from "../engine";
+import { FarmingContext } from "../context";
 import {
   canContinue,
   shouldCheckParachute,
@@ -92,51 +95,24 @@ import { bestYachtzeeFamiliar } from "../yachtzee/familiar";
 const isGhost = () => get("_voteMonster") === $monster`angry ghost`;
 const isMutant = () => get("_voteMonster") === $monster`terrible mutant`;
 
-function createWandererOutfit(
-  details: Delayed<WanderDetails>,
-  spec: Delayed<OutfitSpec>,
-  additionalOutfitOptions: Omit<FreeFightOutfitMenuOptions, "wanderOptions">,
-): Outfit {
-  const wanderTarget = wanderer().getTarget(undelay(details));
-  const needPeridot = wanderTarget.peridotMonster !== $monster.none;
-  const needBCZ = wanderTarget.useRefractedGaze ?? false;
-  const needMonodent = wanderTarget.useFeesh ?? false;
-
-  const sourceOutfit = Outfit.from(
-    undelay(spec),
-    new Error(
-      `Failed to build outfit for Wanderer from ${JSON.stringify(undelay(spec))}`,
-    ),
-  );
-  if (wanderTarget.familiar !== $familiar`none`) {
-    sourceOutfit.familiar = wanderTarget.familiar;
-  }
-  if (needPeridot) sourceOutfit.equip($item`Peridot of Peril`);
-  if (needBCZ) sourceOutfit.equip($item`blood cubic zirconia`);
-  if (needMonodent) sourceOutfit.equip($item`Monodent of the Sea`);
-
-  return freeFightOutfit(
-    sourceOutfit.spec(),
-    undelay(details),
-    additionalOutfitOptions,
-  );
-}
-
 function wanderTask(
   details: Delayed<WanderDetails>,
   spec: Delayed<OutfitSpec>,
-  base: Omit<GarboTask, "outfit" | "do" | "choices" | "spendsTurn"> & {
+  base: Omit<FarmingTask, "outfit" | "do" | "choices" | "spendsTurn"> & {
     combat?: GarboStrategy;
   },
-  additionalOutfitOptions: Omit<
-    FreeFightOutfitMenuOptions,
-    "wanderOptions"
-  > = {},
-): GarboTask {
+  additionalOutfitOptions: Delayed<FreeFightOutfitMenuOptions> = {},
+): FarmingTask {
   return {
-    do: () => wanderer().getTarget(undelay(details)).location,
-    choices: () => wanderer().getChoices(undelay(details)),
-    outfit: () => createWandererOutfit(details, spec, additionalOutfitOptions),
+    wanderer: details,
+    do: ({ wanderTarget }) => wanderTarget.location,
+    choices: ({ wanderTarget }) => wanderTarget.choices,
+    outfit: ({ wanderTarget }) =>
+      freeFightOutfit(
+        undelay(spec),
+        wanderTarget,
+        undelay(additionalOutfitOptions),
+      ),
     spendsTurn: false,
     combat: new GarboStrategy(() => Macro.basicCombat()),
     ...base,
@@ -147,7 +123,7 @@ function shouldGoUnderwater(): boolean {
   if (!sober()) return false;
   if (myLevel() < 11) return false;
 
-  if (questStep("questS01OldGuy") === -1) {
+  if (getStep("questS01OldGuy") === QuestState.UNSTARTED) {
     visitUrl("place.php?whichplace=sea_oldman&action=oldman_oldman");
   }
 
@@ -238,7 +214,7 @@ const digitizedTarget = () =>
   SourceTerminal.have() &&
   SourceTerminal.getDigitizeMonster() === globalOptions.target;
 
-const BarfTurnTasks: GarboTask[] = [
+const BarfTurnTasks: FarmingTask[] = [
   {
     name: "Latte",
     completed: () => !shouldFillLatte(),
@@ -333,7 +309,14 @@ const BarfTurnTasks: GarboTask[] = [
     ready: shouldGoUnderwater,
     acquire: () => [{ item: $item`pulled green taffy` }],
     do: $location`The Briny Deeps`,
-    outfit: () => meatTargetOutfit({}, $location`The Briny Deeps`),
+    outfit: () =>
+      meatTargetOutfit(
+        {},
+        {
+          location: $location`The Briny Deeps`,
+          target: SourceTerminal.getDigitizeMonster() ?? $monster.none,
+        },
+      ),
     combat: new GarboStrategy(
       ...digitizeMacros(Macro.item($item`pulled green taffy`)),
     ),
@@ -342,51 +325,29 @@ const BarfTurnTasks: GarboTask[] = [
   },
   {
     name: "Digitize Wanderer",
+    wanderer: { wanderer: "wanderer", allowEquipment: false },
     completed: () => Counter.get("Digitize Monster") > 0,
-    outfit: () =>
+    outfit: ({ wanderTarget }) =>
       digitizedTarget()
-        ? meatTargetOutfit(mimicSpec(), {
-            wanderer: "wanderer",
-            allowEquipment: false,
-          })
-        : freeFightOutfit(
-            undefined,
-            wanderer().getTarget({
-              wanderer: "wanderer",
-              allowEquipment: false,
-            }).location,
-          ),
-    do: () =>
-      wanderer().getTarget({ wanderer: "wanderer", allowEquipment: false })
-        .location,
-    choices: () =>
-      wanderer().getChoices({
-        wanderer: "wanderer",
-        allowEquipment: false,
-      }),
+        ? meatTargetOutfit(mimicSpec(), wanderTarget.location)
+        : freeFightOutfit(undefined, wanderTarget.location),
+    do: ({ wanderTarget }) => wanderTarget.location,
+    choices: ({ wanderTarget }) => wanderTarget.choices,
     combat: new GarboStrategy(...digitizeMacros()),
     spendsTurn: () =>
       !SourceTerminal.getDigitizeMonster()?.attributes.includes("FREE"),
   },
   {
     name: "Club Into Next Week Monster",
+    wanderer: { wanderer: "wanderer", allowEquipment: false },
     completed: () => LegendarySealClubbingClub.turnsUntilNextWeekFight() > 0,
-    outfit: () =>
+    outfit: ({ wanderTarget }) =>
       LegendarySealClubbingClub.clubIntoNextWeekMonster() ===
       globalOptions.target
-        ? meatTargetOutfit(mimicSpec(), {
-            wanderer: "wanderer",
-            allowEquipment: false,
-          })
-        : freeFightOutfit({}, { wanderer: "wanderer", allowEquipment: false }),
-    do: () =>
-      wanderer().getTarget({ wanderer: "wanderer", allowEquipment: false })
-        .location,
-    choices: () =>
-      wanderer().getChoices({
-        wanderer: "wanderer",
-        allowEquipment: false,
-      }),
+        ? meatTargetOutfit(mimicSpec(), wanderTarget.location)
+        : freeFightOutfit({}, wanderTarget.location),
+    do: ({ wanderTarget }) => wanderTarget.location,
+    choices: ({ wanderTarget }) => wanderTarget.choices,
     combat: new GarboStrategy(() => Macro.target("club 'em into next week")),
     spendsTurn: () =>
       !LegendarySealClubbingClub.clubIntoNextWeekMonster()?.attributes.includes(
@@ -505,7 +466,7 @@ const BarfTurnTasks: GarboTask[] = [
   ),
   wanderTask(
     "conditional freefight",
-    {
+    () => ({
       offhand:
         guaranteedBullseye() || have($item`spring shoes`)
           ? []
@@ -516,7 +477,7 @@ const BarfTurnTasks: GarboTask[] = [
           ? []
           : $item`spring shoes`,
       modifier: guaranteedBullseye() ? [] : "Monster Level",
-    },
+    }),
     {
       name: "Darts: Bullseye",
       ready: safeToAttemptBullseye,
@@ -530,6 +491,11 @@ const BarfTurnTasks: GarboTask[] = [
       ),
       sobriety: "sober",
       duplicate: true,
+    },
+    () => {
+      const bullseyeChance = EverfullDarts.bullseyeChance();
+      // A missed dart falls through to a freerun.
+      return { outcomes: { win: bullseyeChance, run: 1 - bullseyeChance } };
     },
   ),
   wanderTask(
@@ -603,6 +569,7 @@ const BarfTurnTasks: GarboTask[] = [
   ),
   {
     name: "Yachtzee (Cooldown ready)",
+    ready: () => romanticMonsterImpossible(),
     completed: () => get("encountersUntilYachtzeeChoice") > 0,
     outfit: () => {
       setLocation($location`The Sunken Party Yacht`);
@@ -700,7 +667,7 @@ const BarfTurnTasks: GarboTask[] = [
           canEquip($item`Drunkula's wineglass`))) &&
       CrepeParachute.have() &&
       shouldCheckParachute() &&
-      questStep("questL11Worship") > 3 &&
+      getStep("questL11Worship") > 3 &&
       have($item`antique machete`), // TODO Support other machete's
     completed: () => have($effect`Everything looks Beige`),
     outfit: () =>
@@ -782,7 +749,7 @@ const BarfTurnTasks: GarboTask[] = [
   },
 ];
 
-export const WandererQuest: Quest<GarboTask, unknown> = {
+export const WandererQuest: Quest<FarmingTask, FarmingContext> = {
   name: "Wanderers",
   tasks: BarfTurnTasks,
   completed: () => !canContinue(),
