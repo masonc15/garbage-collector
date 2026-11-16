@@ -866,7 +866,12 @@ export class Macro extends StrictMacro {
         $familiar`Chest Mimic`.experience >= 50,
       Macro.if_(
         globalOptions.target,
-        Macro.trySkillRepeat($skill`%fn, lay an egg`),
+        // Egg laying gives the monster a free hit. Save health for the kill
+        // and do not restart stasis if another macro runs later in this fight.
+        Macro.while_(
+          `${Macro.makeBALLSPredicate($skill`%fn, lay an egg`)} && !hppercentbelow 75 && !pastround 2`,
+          Macro.skill($skill`%fn, lay an egg`),
+        ),
       ),
     );
   }

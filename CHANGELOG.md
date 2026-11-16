@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1-nightcap.33 - 2026-11-16
+
+- Stop Chest Mimic egg collection below 75% health or after the first three
+  combat rounds, then continue the kill macro. Previously a well-trained
+  mimic could keep laying eggs until the monster killed the character;
+  Noctys lost to a Witchess Bishop after nine consecutive egg casts.
+
 ## 1.0.1-nightcap.32
 
 - Merge upstream 27c85f06 while preserving Nightcap safety checks, diet limits, session accounting, and the optional Stephen fight.
