@@ -30,6 +30,7 @@ import { acquire } from "../acquire";
 import { Macro } from "../combat";
 import { freeFightOutfit } from "../outfit/free";
 import { globalOptions } from "../config";
+import { freeFightQuestReady, targetCopiesInProgress } from "../lib";
 import { GarboStrategy } from "../combatStrategy";
 
 const trickHats = $items`invisible bag, witch hat, beholed bedsheet, wolfman mask, pumpkinhead mask, mummy costume`;
@@ -84,12 +85,7 @@ function candyRichBlockValue(): number {
     : 0;
 
   const outfitCandyTotal = 3 * outfitCandyValue * totOutfitCandyMultiplier;
-  return (
-    outfitCandyTotal +
-    bowlValue +
-    prunetsValue +
-    5 * globalOptions.prefs.valueOfFreeFight
-  );
+  return outfitCandyTotal + bowlValue + prunetsValue + trickValue(5);
 }
 
 function shouldAcquireCandyMap(): boolean {
@@ -157,14 +153,46 @@ function doCandyTreat(): GarboTask {
 }
 
 const MAX_HAT_PRICE = 100_000;
+function ownedTrickHat() {
+  return trickHats.find((hat) => have(hat) && canEquip(hat));
+}
+
+function cheapestTrickHat() {
+  const candidates = trickHats.filter(
+    (hat) => canEquip(hat) && mallPrice(hat) > 0,
+  );
+  return candidates.length ? maxBy(candidates, mallPrice, true) : undefined;
+}
+
+function trickValue(houses: number): number {
+  if (!houses || !freeFightQuestReady() || targetCopiesInProgress()) return 0;
+  const fightValue = houses * globalOptions.prefs.valueOfFreeFight;
+  if (ownedTrickHat()) return fightValue;
+  const hat = cheapestTrickHat();
+  if (!hat || mallPrice(hat) >= MAX_HAT_PRICE) return 0;
+  return Math.max(0, fightValue - mallPrice(hat));
+}
+
 function obtainTrickHat(): GarboTask {
+  const remainingHouses = () => get("_trickOrTreatBlock").split("D").length - 1;
   return {
     name: "Obtain Trick Hat",
-    completed: () => trickHats.some((hat) => have(hat)),
-    ready: () => trickHats.some((hat) => mallPrice(hat) < MAX_HAT_PRICE),
+    completed: () => !!ownedTrickHat(),
+    ready: () =>
+      !holiday().includes("Halloween") &&
+      get("_mapToACandyRichBlockUsed") &&
+      trickValue(remainingHouses()) > 0,
     do: () => {
-      const cheapestHat = maxBy(trickHats, mallPrice, true);
-      acquire(1, cheapestHat, MAX_HAT_PRICE);
+      const hat = cheapestTrickHat();
+      if (!hat) return;
+      acquire(
+        1,
+        hat,
+        Math.min(
+          MAX_HAT_PRICE - 1,
+          remainingHouses() * globalOptions.prefs.valueOfFreeFight - 1,
+        ),
+      );
     },
     spendsTurn: false,
   };
@@ -181,7 +209,7 @@ export function doCandyTrick(): GarboTask {
     ready: () =>
       !holiday().includes("Halloween") &&
       get("_mapToACandyRichBlockUsed") &&
-      trickHats.some((hat) => have(hat)),
+      !!ownedTrickHat(),
     do: (): void => {
       visitBlock();
       const houseNumber = get("_trickOrTreatBlock").indexOf("D");
@@ -189,7 +217,7 @@ export function doCandyTrick(): GarboTask {
       visitHouse(houseNumber);
     },
     outfit: (): Outfit => {
-      const hat = trickHats.find((hat) => have(hat));
+      const hat = ownedTrickHat();
       if (!hat) {
         throw new Error(
           "We thought we had an appropriate hat for tricking, but we did not.",

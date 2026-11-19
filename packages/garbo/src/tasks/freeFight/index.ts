@@ -91,6 +91,7 @@ import { canSwapGarden } from "../../resources/garden";
 import { shouldAugustCast } from "../../resources/scepter";
 import {
   ESTIMATED_OVERDRUNK_TURNS,
+  freeFightQuestReady,
   getUsingFreeBunnyBanish,
   isFreeAndCopyable,
   kramcoGuaranteed,
@@ -1296,7 +1297,7 @@ export function freeFightQuest(): Quest<MappingTask> {
   return {
     name: "Free Fight",
     tasks: [...FreeFightTasks, ...getTasks([shadowRiftQuest()])],
-    ready: () => sober() && myAdventures() > 0 && !have($effect`Feeling Lost`),
+    ready: freeFightQuestReady,
   };
 }
 

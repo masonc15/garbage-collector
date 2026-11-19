@@ -22,6 +22,7 @@ import {
   meatDropModifier,
   Monster,
   mpCost,
+  myAdventures,
   myBjornedFamiliar,
   myEnthronedFamiliar,
   myFamiliar,
@@ -588,6 +589,19 @@ export function sober(): boolean {
     myInebriety() <=
     inebrietyLimit() + (myFamiliar() === $familiar`Stooper` ? -1 : 0)
   );
+}
+
+export function targetCopiesInProgress(): boolean {
+  return (
+    get("beGregariousFightsLeft") > 0 ||
+    get("_monsterHabitatsFightsLeft") > 0 ||
+    !romanticMonsterImpossible() ||
+    Counter.get("Digitize Monster") <= 0
+  );
+}
+
+export function freeFightQuestReady(): boolean {
+  return sober() && myAdventures() > 0 && !have($effect`Feeling Lost`);
 }
 
 type GarboItemLists = {

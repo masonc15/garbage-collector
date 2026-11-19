@@ -59,7 +59,6 @@ import {
   ChestMimic,
   clamp,
   CombatLoversLocket,
-  Counter,
   Delayed,
   FindActionSourceConstraints,
   get,
@@ -112,6 +111,7 @@ import {
   romanticMonsterImpossible,
   setChoice,
   sober,
+  targetCopiesInProgress,
   targetingMeat,
   targetMeat,
   tryFindFreeRunOrBanish,
@@ -1103,15 +1103,6 @@ const freeRunFightSources = [
     },
   ),
 ];
-
-function targetCopiesInProgress(): boolean {
-  return (
-    get("beGregariousFightsLeft") > 0 ||
-    get("_monsterHabitatsFightsLeft") > 0 ||
-    !romanticMonsterImpossible() ||
-    Counter.get("Digitize Monster") <= 0
-  );
-}
 
 function freeRunFights(): void {
   if (!sober()) return;
