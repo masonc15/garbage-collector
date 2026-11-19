@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1-nightcap.35 - 2026-11-19
+
+- Include upstream changes through bd3d7635. Garbo accounts for Stooper's extra liver capacity when choosing familiars and preparing to farm, and can consider Red-Nosed Snapper and Sword of S Words while overdrunk.
+- Stop the mimic-egg farming task if it has not completed after 11 attempts. Nightcap's existing health and round limits still apply within each fight.
+
 ## 1.0.1-nightcap.34 - 2026-11-19
 
 - Skip target-copy setup at zero adventures. Delay farm buffs and Dinsey's ticket until turns are available. Turn generators and end-of-run tasks still run.
