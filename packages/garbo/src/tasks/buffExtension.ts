@@ -49,6 +49,7 @@ const MP_OUTFIT = {
 const BuffExtensionTasks: GarboTask[] = [
   {
     name: "Platinum Yendorian Express Card",
+    ready: () => stash.canBorrowOrHave($item`Platinum Yendorian Express Card`),
     completed: () => get("expressCardUsed"),
     do: () => {
       stash.with($items`Platinum Yendorian Express Card`, () => {
@@ -65,6 +66,7 @@ const BuffExtensionTasks: GarboTask[] = [
   },
   {
     name: "Bag o' Tricks",
+    ready: () => stash.canBorrowOrHave($item`Bag o' Tricks`),
     completed: () => get("_bagOTricksUsed"),
     do: () => {
       stash.with($items`Bag o' Tricks`, () => {

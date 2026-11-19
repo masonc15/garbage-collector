@@ -38,6 +38,7 @@ import {
   set,
   sum,
   unequip,
+  withProperty,
 } from "libram";
 import { withClan } from "./clan";
 import { prepareForCleanup } from "./cleanup";
@@ -191,6 +192,18 @@ class StashManager {
     const preference = globalOptions.prefs.stashClan;
     if (["", "0", "none"].includes(preference)) return null;
     return /^\d+$/.test(preference) ? Number(preference) : preference;
+  }
+
+  canBorrowOrHave(item: Item): boolean {
+    return have(item) || this.borrowingClan() !== null;
+  }
+
+  useIfAvailable(item: Item): void {
+    this.with([item], () => {
+      if (have(item)) {
+        withProperty("autoSatisfyWithMall", false, () => use(1, item));
+      }
+    });
   }
 
   private saveLedger(loans: Loan[] = this.outstandingLoans()): void {

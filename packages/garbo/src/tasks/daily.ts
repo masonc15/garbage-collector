@@ -541,11 +541,9 @@ const DailyTasks: GarboTask[] = [
   },
   {
     name: $item`defective Game Grid token`.name,
+    ready: () => stash.canBorrowOrHave($item`defective Game Grid token`),
     completed: () => get("_defectiveTokenUsed"),
-    do: () =>
-      stash.with([$item`defective Game Grid token`], () =>
-        use(1, $item`defective Game Grid token`),
-      ),
+    do: () => stash.useIfAvailable($item`defective Game Grid token`),
     spendsTurn: false,
   },
   {
@@ -721,23 +719,18 @@ const DailyTasks: GarboTask[] = [
   },
   {
     name: "Use BittyCar MeatCart",
-    ready: () => get("_bittycar") !== "meatcar",
+    ready: () => stash.canBorrowOrHave($item`BittyCar MeatCar`),
     completed: () => get("_bittycar") === "meatcar",
-    do: () =>
-      stash.with([$item`BittyCar MeatCar`], () =>
-        use(1, $item`BittyCar MeatCar`),
-      ),
+    do: () => stash.useIfAvailable($item`BittyCar MeatCar`),
     spendsTurn: false,
   },
   {
     name: "Use BittyCar SoulCar",
     ready: () =>
-      get("_bittycar") !== "meatcar" && get("_bittycar") !== "soulcar",
+      get("_bittycar") !== "meatcar" &&
+      stash.canBorrowOrHave($item`BittyCar SoulCar`),
     completed: () => get("_bittycar") === "soulcar",
-    do: () =>
-      stash.with([$item`BittyCar SoulCar`], () =>
-        use(1, $item`BittyCar SoulCar`),
-      ),
+    do: () => stash.useIfAvailable($item`BittyCar SoulCar`),
     spendsTurn: false,
   },
   {
