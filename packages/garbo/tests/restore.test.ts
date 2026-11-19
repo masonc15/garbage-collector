@@ -4,14 +4,21 @@ const state = vi.hoisted(() => ({
   lost: false,
   beaten: false,
   monster: "garbage tourist",
+  underwater: false,
+  familiar: "Leprechaun",
+  drunkenness: 0,
+  hp: 1,
 }));
 
 vi.mock("kolmafia", () => ({
   eat: vi.fn(),
-  inebrietyLimit: () => 15,
+  inebrietyLimit: () => 15 + Number(state.familiar === "Stooper"),
+  myFamiliar: () => state.familiar,
+  Monster: { all: () => [] },
+  isDarkMode: () => false,
   lastMonster: () => state.monster,
-  myHp: () => 1,
-  myInebriety: () => 0,
+  myHp: () => state.hp,
+  myInebriety: () => state.drunkenness,
   myMaxhp: () => 1000,
   myMaxmp: () => 500,
   myMp: () => 0,
@@ -22,6 +29,10 @@ vi.mock("kolmafia", () => ({
   useSkill: vi.fn(),
 }));
 vi.mock("libram", () => ({
+  PropertiesManager: class {},
+  $items: (s: TemplateStringsArray) => s[0].split(", "),
+  $location: (s: TemplateStringsArray) => s[0],
+  $familiar: (s: TemplateStringsArray) => s[0],
   $effect: (s: TemplateStringsArray) => s[0],
   $item: (s: TemplateStringsArray) => s[0],
   $monster: (s: TemplateStringsArray) => s[0],
@@ -36,10 +47,15 @@ vi.mock("libram", () => ({
     state.beaten = false;
   }),
 }));
+vi.mock("../src/acquire", () => ({}));
+vi.mock("../src/config", () => ({}));
+vi.mock("../src/garboValue", () => ({}));
+vi.mock("grimoire-kolmafia", () => ({}));
 vi.mock("../src/farmingStrategy", () => ({
-  FarmingStrategy: { isUnderwater: () => false },
+  FarmingStrategy: { isUnderwater: () => state.underwater },
 }));
-vi.mock("../src/lib", () => ({
+vi.mock("../src/lib", async (original) => ({
+  ...(await original<typeof import("../src/lib")>()),
   burnLibrams: vi.fn(),
   howManySausagesCouldIEat: () => 1,
 }));
@@ -54,6 +70,10 @@ beforeEach(() => {
     lost: false,
     beaten: false,
     monster: "garbage tourist",
+    underwater: false,
+    familiar: "Leprechaun",
+    drunkenness: 0,
+    hp: 1,
   });
   vi.clearAllMocks();
 });
@@ -109,4 +129,24 @@ test("explicit cleanup may cure beaten up but never ignores a loss", () => {
   safeRestore(true);
   expect(uneffect).toHaveBeenCalledWith("Beaten Up");
   expect(state.beaten).toBe(false);
+});
+
+test("underwater recovery accounts for losing Stooper's extra capacity", () => {
+  Object.assign(state, {
+    underwater: true,
+    familiar: "Stooper",
+    hp: 750,
+    drunkenness: 15,
+  });
+  safeRestore();
+  expect(restoreHp).not.toHaveBeenCalled();
+
+  state.drunkenness = 16;
+  safeRestore();
+  expect(restoreHp).toHaveBeenCalledWith(900);
+
+  vi.mocked(restoreHp).mockClear();
+  state.familiar = "Leprechaun";
+  safeRestore();
+  expect(restoreHp).toHaveBeenCalledWith(900);
 });
