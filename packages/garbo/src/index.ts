@@ -11,6 +11,7 @@ import {
   Item,
   logprint,
   maximize,
+  myAdventures,
   myBasestat,
   myClass,
   myInebriety,
@@ -88,7 +89,7 @@ import { shouldAffirmationHate } from "./combat";
 import { acquire } from "./acquire";
 import { FarmingStrategy } from "./farmingStrategy";
 import { shouldTargetAngryTourists } from "./familiar/barfFamiliar";
-import { runGarboFarmQuests, runGarboQuests } from "./tasks/engine";
+import { runGarboQuests } from "./tasks/engine";
 
 // Max price for tickets. You should rethink whether Barf is the best place if they're this expensive.
 const TICKET_MAX_PRICE = 500000;
@@ -263,13 +264,6 @@ export function main(argString = ""): void {
   examine($item`designer sweatpants`);
 
   startSession();
-  if (
-    !globalOptions.nobarf &&
-    !globalOptions.simdiet &&
-    FarmingStrategy.ensureBarfAccess
-  ) {
-    ensureBarfAccess();
-  }
 
   if (globalOptions.simdiet) {
     propertyManager.set({
@@ -539,6 +533,13 @@ export function main(argString = ""): void {
           }
 
           // 1. make an outfit (amulet coin, pantogram, etc), misc other stuff (VYKEA, songboom, robortender drinks)
+          if (
+            !globalOptions.nobarf &&
+            canContinue() &&
+            FarmingStrategy.ensureBarfAccess
+          ) {
+            ensureBarfAccess();
+          }
           dailySetup();
 
           const preventEquip = $items`broken champagne bottle, Spooky Putty snake, Spooky Putty mitre, Spooky Putty leotard, Spooky Putty ball, papier-mitre, papier-mâchéte, papier-mâchine gun, papier-masque, papier-mâchuridars, smoke ball, stinky fannypack, dice-shaped backpack, Amulet of Perpetual Darkness, fiberglass foil`;
@@ -560,33 +561,37 @@ export function main(argString = ""): void {
 
           // 2. do some target copy stuff
           freeFights();
-          runGarboQuests([CockroachFinish]); // Fight the giant giant crab after we've dieted for some extra buffs
-          maximize("MP", false); // Remove our piraterealm eyepatch after we leave piraterealm
-          if (
-            sober() &&
-            !have($item`Spooky Putty monster`) &&
-            get("spookyPuttyCopiesMade") +
-              Math.max(1, get("_raindohCopiesMade")) <
-              6
-          ) {
-            stash.request($items`Spooky Putty sheet`);
+          if (myAdventures() > 0) {
+            runGarboQuests([CockroachFinish]);
+            maximize("MP", false); // Remove our piraterealm eyepatch
           }
-          runGarboQuests([SetupTargetCopyQuest]);
-          dailyFights();
+          if (myAdventures() > 0) {
+            if (
+              sober() &&
+              !have($item`Spooky Putty monster`) &&
+              get("spookyPuttyCopiesMade") +
+                Math.max(1, get("_raindohCopiesMade")) <
+                6
+            ) {
+              stash.request($items`Spooky Putty sheet`);
+            }
+            runGarboQuests([SetupTargetCopyQuest]);
+            dailyFights();
+          }
 
           if (!globalOptions.nobarf) {
             // 3. burn turns at barf
-            globalOptions.farmingStarted = true;
-            potionSetup(false);
-            maximize("MP", false);
-            meatMood().execute(estimatedGarboTurns());
-            runGarboQuests([BuffExtensionQuest, PostBuffExtensionQuest]);
-            if (!targetingMeat()) runGarboQuests([EmbezzlerFightsQuest]);
-            globalOptions.targetAngryTourists = shouldTargetAngryTourists();
             try {
-              trackMarginalMpa();
-              runGarboFarmQuests([PostQuest(), ...FarmQuests()]);
-              trackMarginalMpa();
+              runFarm(() => {
+                if (FarmingStrategy.ensureBarfAccess) ensureBarfAccess();
+                globalOptions.farmingStarted = true;
+                potionSetup(false);
+                maximize("MP", false);
+                meatMood().execute(estimatedGarboTurns());
+                runGarboQuests([BuffExtensionQuest, PostBuffExtensionQuest]);
+                if (!targetingMeat()) runGarboQuests([EmbezzlerFightsQuest]);
+                globalOptions.targetAngryTourists = shouldTargetAngryTourists();
+              });
               runGarboQuests([FinishUpQuest]);
             } finally {
               setAutoAttack(0);
@@ -618,7 +623,7 @@ export function main(argString = ""): void {
 }
 import { CockroachFinish, CockroachSetup } from "./tasks/cockroach/prep";
 import { EmbezzlerFightsQuest } from "./tasks/embezzler";
-import { FarmQuests } from "./tasks/farm";
+import { runFarm } from "./tasks/farm";
 import { FinishUpQuest } from "./tasks/finishUp";
-import { PostQuest } from "./tasks/post";
+import { canContinue } from "./tasks/farm/lib";
 import { SetupTargetCopyQuest } from "./tasks/target";

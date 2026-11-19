@@ -311,6 +311,10 @@ function familiarSpec(underwater: boolean, fight: CopyTargetFight): OutfitSpec {
 }
 
 export function dailyFights(): void {
+  if (myAdventures() === 0) {
+    stash.done($item`Spooky Putty sheet`);
+    return;
+  }
   if (!sober()) return;
 
   if (copyTargetSources.some((source) => source.potential())) {
