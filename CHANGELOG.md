@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1-nightcap.34 - 2026-11-19
+
+- Skip target-copy setup at zero adventures. Delay farm buffs and Dinsey's ticket until turns are available. Turn generators and end-of-run tasks still run.
+- Value a candy map using the trick fights Garbo can reach. Include the cost of a missing costume and buy it only when the remaining houses cover its price.
+- Use BittyCars and defective Game Grid tokens only when available after borrowing. Skip unavailable buff extenders when stash borrowing is disabled.
+
 ## 1.0.1-nightcap.33 - 2026-11-16
 
 - Stop Chest Mimic egg collection below 75% health or after the first three
