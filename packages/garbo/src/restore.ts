@@ -1,9 +1,7 @@
 import {
   eat,
-  inebrietyLimit,
   lastMonster,
   myHp,
-  myInebriety,
   myMaxhp,
   myMaxmp,
   myMp,
@@ -16,7 +14,7 @@ import {
 import { $effect, $item, $monster, $skill, get, have, uneffect } from "libram";
 import { checkCombatSafety } from "./combatSafety";
 import { FarmingStrategy } from "./farmingStrategy";
-import { burnLibrams, howManySausagesCouldIEat } from "./lib";
+import { burnLibrams, howManySausagesCouldIEat, sober } from "./lib";
 
 export function safeRestoreMpTarget(): number {
   //  If our max MP is close to 200, we could be restoring every turn even if we don't need to, avoid that case.
@@ -39,7 +37,7 @@ export function safeRestore(removeBeatenUp = false): void {
   }
 
   const lowPercentageHealth = FarmingStrategy.isUnderwater()
-    ? myInebriety() > inebrietyLimit()
+    ? !sober()
       ? 0.9
       : 0.6
     : 0.5;

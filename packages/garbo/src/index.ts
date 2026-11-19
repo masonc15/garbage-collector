@@ -7,14 +7,12 @@ import {
   equip,
   guildStoreAvailable,
   handlingChoice,
-  inebrietyLimit,
   Item,
   logprint,
   maximize,
   myAdventures,
   myBasestat,
   myClass,
-  myInebriety,
   myLevel,
   myTurncount,
   print,
@@ -248,7 +246,7 @@ export function main(argString = ""): void {
   }
 
   if (
-    myInebriety() > inebrietyLimit() &&
+    !sober() &&
     (!have($item`Drunkula's wineglass`) ||
       !canEquip($item`Drunkula's wineglass`))
   ) {
@@ -467,7 +465,7 @@ export function main(argString = ""): void {
         }
         const stashItems = $items`repaid diaper, Buddy Bjorn, Crown of Thrones, Pantsgiving, mafia pointer finger ring, Mayflower bouquet`;
         if (
-          myInebriety() <= inebrietyLimit() &&
+          sober() &&
           (myClass() !== $class`Seal Clubber` ||
             !have($skill`Furious Wallop`)) &&
           !have($skill`Head in the Game`)
