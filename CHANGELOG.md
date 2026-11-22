@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1-nightcap.37 - 2026-11-22
+
+- Exclude failed diet purchases from every planning pass, including generated potion tiers. The daily diet tries each unavailable target once and continues farming with unused organ capacity when the remaining purchases cannot be made.
+
 ## 1.0.1-nightcap.35 - 2026-11-19
 
 - Include upstream changes through bd3d7635. Garbo accounts for Stooper's extra liver capacity when choosing familiars and preparing to farm, and can consider Red-Nosed Snapper and Sword of S Words while overdrunk.
