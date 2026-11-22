@@ -104,7 +104,7 @@ import {
 import { acquire, priceCaps } from "./acquire";
 import {
   dietTargetCap,
-  isUnavailableDietItem,
+  DietAvailability,
   UnavailableDietItemError,
 } from "./dietCap";
 import { withVIPClan } from "./clan";
@@ -1548,15 +1548,12 @@ function withoutDominatedItems(menu: MenuItem<Note>[]): MenuItem<Note>[] {
   );
 }
 
-export function computeDiet(excluded: ReadonlySet<Item> = new Set()): {
+export function computeDiet(availability = new DietAvailability()): {
   diet: () => Diet<Note>;
   shotglass: () => Diet<Note>;
   pantsgiving: () => Diet<Note>;
   sweatpants: () => Diet<Note>;
 } {
-  // Items that could not be bought within their cap are left off a replanned diet
-  const available = () =>
-    menu().filter((menuItem) => !excluded.has(menuItem.item));
   // Handle spleen manually, as the diet planner doesn't support synth. Only fill food and booze.
 
   const orEmpty = (diet: Diet<Note>) =>
@@ -1568,7 +1565,7 @@ export function computeDiet(excluded: ReadonlySet<Item> = new Set()): {
     orEmpty(
       Diet.plan(
         MPA,
-        withoutDominatedItems(withoutHopelessItems(menu)),
+        withoutDominatedItems(withoutHopelessItems(availability.menu(menu))),
         organCapacities,
       ),
     );
@@ -1584,7 +1581,7 @@ export function computeDiet(excluded: ReadonlySet<Item> = new Set()): {
   return {
     diet: () =>
       planBalancedDiet(
-        available().filter(
+        menu().filter(
           (menuItem) =>
             !priceCaps[menuItem.item.name] ||
             priceCaps[menuItem.item.name] >= mallPrice(menuItem.item),
@@ -1593,7 +1590,7 @@ export function computeDiet(excluded: ReadonlySet<Item> = new Set()): {
       ),
     shotglass: () =>
       planBalancedDiet(
-        available().filter(
+        menu().filter(
           (menuItem) =>
             itemType(menuItem.item) === "booze" && menuItem.size === 1,
         ),
@@ -1601,7 +1598,7 @@ export function computeDiet(excluded: ReadonlySet<Item> = new Set()): {
       ),
     pantsgiving: () =>
       planBalancedDiet(
-        available().filter(
+        menu().filter(
           (menuItem) =>
             (itemType(menuItem.item) === "food" && menuItem.size === 1) ||
             [
@@ -1616,7 +1613,7 @@ export function computeDiet(excluded: ReadonlySet<Item> = new Set()): {
       ),
     sweatpants: () =>
       planBalancedDiet(
-        available().filter(
+        menu().filter(
           (menuItem) =>
             itemType(menuItem.item) === "booze" && menuItem.size <= 3,
         ),
@@ -2075,34 +2072,6 @@ export function consumeDiet(diet: Diet<Note>, name: DietName): void {
   for (const task of tasks) task.perform();
 }
 
-const MAX_REPLANS = 3;
-
-/**
- * Consume a diet. If an entry's target can't be bought within its cap, plan
- * again from the current organ state without that item. The target is bought
- * before its helpers are used, so a failed purchase costs nothing.
- */
-function consumeReplanning(
-  diet: Diet<Note>,
-  plan: (builder: ReturnType<typeof computeDiet>) => Diet<Note>,
-  name: DietName,
-): void {
-  const excluded = new Set<Item>();
-  for (;;) {
-    try {
-      consumeDiet(diet, name);
-      return;
-    } catch (error) {
-      if (!isUnavailableDietItem(error) || excluded.size >= MAX_REPLANS) {
-        throw error;
-      }
-      print(error.message, "red");
-      excluded.add(toItem(error.itemName));
-      diet = plan(computeDiet(excluded));
-    }
-  }
-}
-
 function dailySpecialPrice(item: Item) {
   if (!hasMoonZoneRestaurant() || item !== get("_dailySpecial")) return 0;
   return get("_dailySpecialPrice");
@@ -2140,7 +2109,9 @@ export function runDiet(): void {
     }
 
     // Compute diet
-    const dietBuilder = computeDiet();
+    const availability = new DietAvailability();
+    const dietBuilder = computeDiet(availability);
+    const report = (message: string) => print(message, "red");
 
     if (globalOptions.simdiet) {
       print("===== SIMULATED DIET =====");
@@ -2175,10 +2146,9 @@ export function runDiet(): void {
         use($item`astral six-pack`);
       }
       if (!get("_mimeArmyShotglassUsed") && have($item`mime army shotglass`)) {
-        consumeReplanning(
-          dietBuilder.shotglass(),
-          (builder) => builder.shotglass(),
-          "SHOTGLASS",
+        availability.consume(
+          () => consumeDiet(dietBuilder.shotglass(), "SHOTGLASS"),
+          report,
         );
       }
 
@@ -2190,10 +2160,9 @@ export function runDiet(): void {
         cliExecute("barrelprayer buff");
       }
 
-      consumeReplanning(
-        dietBuilder.diet(),
-        (builder) => builder.diet(),
-        "FULL",
+      availability.consume(
+        () => consumeDiet(dietBuilder.diet(), "FULL"),
+        report,
       );
       const organChecks = [
         { current: myInebriety, max: inebrietyLimit },
@@ -2201,7 +2170,12 @@ export function runDiet(): void {
         { current: myFullness, max: fullnessLimit },
       ];
       if (organChecks.some(({ current, max }) => current() < max())) {
-        throw new Error("Tried to fill our organs but couldn't!");
+        if (!availability.skippedPurchases) {
+          throw new Error("Tried to fill our organs but couldn't!");
+        }
+        report(
+          "Diet finished with unused organ capacity after unavailable purchases.",
+        );
       }
       shrugBadEffects();
     }

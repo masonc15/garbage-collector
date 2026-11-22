@@ -33,18 +33,15 @@ export function dietTargetCap({
 }
 
 /**
- * Thrown when a diet entry's target cannot be bought within its cap. It is
- * raised before any of the entry's helpers are used, so the caller can plan
- * again without the item and nothing has been wasted.
+ * Raised before spending helpers when acquisition leaves too few copies of
+ * the target. Any copies already bought stay in inventory.
  */
 export class UnavailableDietItemError extends Error {
   constructor(
     readonly itemName: string,
     readonly cap: number,
   ) {
-    super(
-      `Could not buy ${itemName} for at most ${Math.floor(cap)} meat; planning the diet again without it.`,
-    );
+    super(`Could not buy ${itemName} for at most ${Math.floor(cap)} meat.`);
     this.name = "UnavailableDietItemError";
   }
 }
@@ -61,4 +58,35 @@ export function isUnavailableDietItem(
     error.name === "UnavailableDietItemError" &&
     typeof (error as Partial<UnavailableDietItemError>).itemName === "string"
   );
+}
+
+/** Purchase failures apply to every planning pass, including generated potion tiers. */
+export class DietAvailability {
+  private readonly excluded = new Set<string>();
+
+  get skippedPurchases(): boolean {
+    return this.excluded.size > 0;
+  }
+
+  menu<T extends { item: { name: string } }>(entries: T[]): T[] {
+    return entries.filter(({ item }) => !this.excluded.has(item.name));
+  }
+
+  consume(attempt: () => void, report: (message: string) => void): void {
+    for (;;) {
+      try {
+        attempt();
+        return;
+      } catch (error) {
+        if (!isUnavailableDietItem(error)) throw error;
+        if (this.excluded.has(error.itemName)) {
+          throw new Error(
+            `Diet planner retried excluded item: ${error.itemName}`,
+          );
+        }
+        this.excluded.add(error.itemName);
+        report(`${error.message} Replanning without it.`);
+      }
+    }
+  }
 }
